@@ -3,6 +3,7 @@
 
 # Folder view configuration files
 .idea/
+.idea/misc.xml
 .DS_Store
 Desktop.ini
 
@@ -37,5 +38,5 @@ node_modules
 venv
 __pycache__
 #vscode 
-.vscode
+.vscode/
 
