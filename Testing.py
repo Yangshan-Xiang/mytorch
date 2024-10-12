@@ -1,5 +1,7 @@
 import numpy as np
-import matplotlib as
+import matplotlib.pyplot as plt
+
+
 a = [1, 2, 3]
 b = np.arange(3)
 print(b)
