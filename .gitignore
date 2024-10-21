@@ -1,4 +1,5 @@
-
+# Datasets
+data/
 # Logs and databases #
 ######################
 *.log

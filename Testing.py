@@ -1,9 +1,15 @@
+import random
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+import torch
+import pathlib
+from torchvision import datasets, transforms
+from torch.utils.data import DataLoader
+from torch.utils.data import sampler
 
-dd
-a = [1, 2, 3]
-b = np.arange(3)
-print(b)
-for i in a:
-    print(i)
+# DO NOT CHANGE
+data_dir = pathlib.Path('data/')
+mnist = datasets.MNIST(data_dir, download=True, train=True)
