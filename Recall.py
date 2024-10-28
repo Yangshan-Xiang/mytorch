@@ -69,7 +69,6 @@ class LogisticRegression(torch.nn.Module):
     def __init__(self, input_dim, output_dim):
         """ Initializes internal Module state. """
         super(LogisticRegression, self).__init__()
-        # TODO define linear layer for the model
         self.linear = torch.nn.Linear(input_dim, output_dim)
 
 
