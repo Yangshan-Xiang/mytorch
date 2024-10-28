@@ -56,7 +56,7 @@ test_dataloader = DataLoader(mnist_test, batch_size=batch_size, shuffle=False)
 # plt.imshow(x[0].squeeze(), cmap="gray")
 # plt.show()
 
-epochs = 1
+epochs = 10
 input_dim = 28 * 28
 output_dim = 10
 lr = 0.001
@@ -80,6 +80,61 @@ class LogisticRegression(torch.nn.Module):
         # TODO run the data through the layer
         outputs = torch.softmax(self.linear(x), dim=1)
         return outputs
+
+# TODO instantiate the model
+model = LogisticRegression(input_dim, output_dim)
+# TODO put the model in train mode
+model.train()
+# TODO define the loss function
+loss_function = torch.nn.CrossEntropyLoss()
+
+# DO NOT CHANGE
+optimizer = torch.optim.SGD(model.parameters(), lr=lr)
+
+# TODO fill in the missing lines
+for epoch in range(epochs):
+    for i, (images, labels) in enumerate(train_dataloader):
+        # delete the gradients from last training iteration
+        optimizer.zero_grad()
+
+        # Forward pass: get predictions
+        y_pred =  model(images)
+
+        # Compute loss
+        loss = loss_function(y_pred, labels)
+
+        # Backward pass -> calculate gradients, update weights
+        loss.backward()
+        optimizer.step()
+
+# TODO get a random element of the test dataloader
+x, y = next(iter(train_dataloader))
+x = x[0]
+y = y[0]
+
+# TODO set model in eval mode
+model.eval()
+# no automatic gradient update needed in evaluation
+with torch.no_grad():
+    # TODO make a prediction
+    y_pred = model(x)
+
+# print predicted label and given label
+print("predicted label: ", y_pred.argmax())
+print("given label: ", y)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
