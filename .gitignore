@@ -1,6 +1,5 @@
 # Data
 data/
-CIFAR10/
 # Logs and databases #
 ######################
 *.log
