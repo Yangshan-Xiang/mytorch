@@ -1,5 +1,6 @@
 # Data
 data/
+
 # Logs and databases #
 ######################
 *.log
