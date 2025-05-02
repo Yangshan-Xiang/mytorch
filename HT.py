@@ -1,4 +1,5 @@
 import numpy as np
+from utils.representation import *
 
 class HT:
     """
@@ -21,7 +22,7 @@ class HT:
             self.params[f'level_l'] = np.random.randn(n // (2**l), ranks[l], ranks[l-1])
         self.params['final'] = np.random.randn(y, ranks[-1])
 
-    def forward(self, X):
+    def forward(self, x):
         """
         Forward pass of the HT model.
 
@@ -30,7 +31,17 @@ class HT:
         Returns:
 
         """
-        
+        fx = np.zeros((self.N, self.M))
+        theta =  np.random.uniform(0, 1, self.M)
+        for i in range(self.N):
+            for j in range(self.M):
+                fx[i, j] = gaussian(x[i], theta[j])
+
+
+
+
+
+
 
 
 
