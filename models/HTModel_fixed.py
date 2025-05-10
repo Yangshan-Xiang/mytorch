@@ -2,7 +2,8 @@ import numpy as np
 
 # The key to implement this model is how to index and structure all the parameters such that they can
 # be computed recursively
-class HTModel():
+class HTModel_fixed():
+    # HT model with FIXED and randomly initialized parameters
     def __init__(self, N:int, M:int, ranks:list, Y:int):
         # The notations are consistent with the notations used in the original paper
         if (not isinstance(N, int) or not isinstance(M, int) or not isinstance(Y, int)
@@ -22,7 +23,7 @@ class HTModel():
         self.Y = Y # The number of output classes, the number of channels in the output layer
         self.L = int(np.log2(N)) # The number of hidden-layers, exclude the representation layer and output layer
 
-        # Define the parameters, they are randomly initialized and NOT trainable now!
+        # Define the parameters
         self.params = [np.random.randn(N, ranks[0], M)] # The parameters of the 1st hidden-layer
         for l in range(1, self.L):
             self.params.append(np.random.randn(N // 2 ** l, ranks[l], ranks[l-1])) # The parameters of the
