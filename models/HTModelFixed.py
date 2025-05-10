@@ -75,7 +75,7 @@ class HTModelFixed:
                 A[y] += (np.kron(phis[-1][0, alpha], phis[-1][1, alpha]).reshape(* [self.M] * self.N)
                          * self.params[-1][y, alpha]) # Reshaped to M ^ N
 
-        # Implement the score function h_y(X) depicted in function (2) in the paper
+        # Compute the score function h_y(X) depicted in function (2) in the paper
         h = np.zeros(self.Y)
 
         # Prepare the factor which can be directly multiplied with tensor A_y

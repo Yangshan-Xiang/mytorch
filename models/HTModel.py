@@ -6,46 +6,70 @@ from torch.utils.data import DataLoader
 import numpy as np
 
 # The key to implement this model is how to index and structure all the parameters such that they can
-# be computed and trained recursively
+# be computed recursively
 class HTModel(nn.Module):
-    # HT model with TRAINABLE parameters
-    def __init__(self, N:int, M:int, ranks:list, Y:int):
+    """
+    HT model depicted in the original paper with TRAINABLE parameters.
+
+    Args:
+        N (int): The number of vectorized patches of one input instance (e.g. image),
+        need to be the power of 2 for simplicity as described in the paper.
+        M (int): The number of representation functions, consist with the number of input channels in CNN.
+        Y (int): The number of output classes, consist with the number of output channels in CNN.
+        ranks (list): A list of ranks of the HT decomposition, consist with the number of intermediate channels in CNN.
+    """
+
+    def __init__(self, N:int, s:int, M:int, Y:int, ranks:list):
         super(HTModel, self).__init__()
         # The notations are consistent with the notations used in the original paper
-        if (not isinstance(N, int) or not isinstance(M, int) or not isinstance(Y, int)
+        if (not isinstance(N, int) or not isinstance(s, int) or not isinstance(M, int) or not isinstance(Y, int)
                 or not all(isinstance(r, int) for r in ranks)):
             raise TypeError("N, M, ranks and Y must be integers.")
-        if N < 1 or M < 1 or Y < 1 or all(r < 1 for r in ranks):
-            raise ValueError("N, M, ranks and Y must be positive.")
+        if N < 1 or s < 1 or M < 1 or Y < 1 or not all(r > 1 for r in ranks):
+            raise ValueError("N, s, M, Y and ranks must all be positive.")
         if (N & (N - 1)) != 0:
             raise ValueError("N must be the power of 2.")
         if len(ranks) != np.log2(N):
             raise ValueError(f"The number of ranks must equal to {int(np.log2(N))}.")
 
-        self.N = N # The number of input data, the number of vectorized patches of one input image, need to be
-        # the power of 2 for simplicity as described in the paper
-        self.M = M # The number of representation functions, the number of input channels
-        self.ranks = ranks # A list of ranks of the HT decomposition, the number of channels in each feature map
-        self.Y = Y # The number of output classes, the number of channels in the output layer
+        self.N = N
+        self.s = s
+        self.M = M
+        self.Y = Y
+        self.ranks = ranks
+
         self.L = int(np.log2(N)) # The number of hidden-layers, exclude the representation layer and output layer
 
         # Define the parameters
-        self.params = [np.random.randn(N, ranks[0], M)] # The parameters of the 1st hidden-layer
+        self.params = nn.ParameterList()
+        self.params.append(nn.Parameter(torch.randn(N, ranks[0], M))) # The parameters of the 1st hidden-layer
         for l in range(1, self.L):
-            self.params.append(np.random.randn(N // 2 ** l, ranks[l], ranks[l-1])) # The parameters of the
+            self.params.append(nn.Parameter(torch.randn(N // 2 ** l, ranks[l], ranks[l-1]))) # The parameters of the
             # rest hidden-layers
-        self.params.append(np.random.randn(Y, ranks[-1])) # The parameters of the output layer.
+        self.params.append(nn.Parameter(torch.randn(Y, ranks[-1]))) # The parameters of the output layer.
 
-    def forward(self, X): # X is the input instance which has the size of (N, s)
-        # Representation layer, will convert the shape of X into (N, M), can be replaced by torch.nn.linear() layer
-        # with a ReLU activation function
-        weights = np.random.randn(X.shape[-1], self.M)
-        F = X @ weights
+        # The representation layer which converts the shape of input from (N, s) to (N, M), different from
+        # the original paper, here the representation layer is trainable
+        self.repr = nn.Sequential(nn.Linear(s, 128),
+                                  nn.ReLU(),
+                                  nn.Linear(128, M))
+
+    def forward(self, X):
+        """
+        Forward pass of the HT model to compute the scores of each output class, supporting batch optimization.
+
+        Args:
+            X: Processed input instance of size (batch_size, N, s).
+
+        Returns:
+            Output scores of each class, output of size (batch_size, Y).
+        """
+        F = self.repr(X) # From (batch_size, N, s) to (batch_size, N, M)
 
         # The task here is to compute the phi tensors hierarchically according to the equation (4) in the paper
         phis = [self.params[0]] # phi_0 tensor is just the stack of parameter vectors in the 1st hidden-layer
         for l in range (1, self.L):
-            phi = np.zeros((self.N // 2 ** l, self.ranks[l], self.M ** 2 ** l)) # Compute the intermediate level
+            phi = torch.zeros((self.N // 2 ** l, self.ranks[l], self.M ** 2 ** l)) # Compute the intermediate level
             # phi tensors hierarchically
             # Compute the phi_l tensor by computing each phi_l_j_gamma recursively
             for j in range(self.N // 2 ** l):
@@ -53,26 +77,28 @@ class HTModel(nn.Module):
                     for alpha in range(self.ranks[l-1]):
                         # This line of code EXACTLY matches the expression of phi_l_j_gamma depicted in
                         # the equation (4)
-                        phi[j, gamma] += (np.kron(phis[l-1][2 * j, alpha], phis[l-1][2 * j + 1, alpha]) *
+                        phi[j, gamma] += (torch.kron(phis[l-1][2 * j, alpha], phis[l-1][2 * j + 1, alpha]) *
                                           self.params[l][j, gamma, alpha])
             phis.append(phi)
         # Compute the final coefficient tensor A_y using the phi tensors
-        A = np.zeros((self.Y, * [self.M] * self.N)) # Evert A_y tensor has the shape of M ^ N
+        A = torch.zeros((self.Y, * [self.M] * self.N)) # Evert A_y tensor has the shape of M ^ N
         for y in range(self.Y):
             for alpha in range(self.ranks[-1]):
                 # Again this EXACTLY matches the expression of A_y depicted in the equation (4)
-                A[y] += (np.kron(phis[-1][0, alpha], phis[-1][1, alpha]).reshape(* [self.M] * self.N)
+                A[y] += (torch.kron(phis[-1][0, alpha], phis[-1][1, alpha]).reshape([self.M] * self.N)
                          * self.params[-1][y, alpha]) # Reshaped to M ^ N
 
         # Compute the score function h_y(X) depicted in function (2) in the paper
-        h = np.zeros(self.Y)
-
+        batch_size = X.shape[0]
+        h = torch.zeros((batch_size, self.Y))
         # Prepare the factor which can be directly multiplied with tensor A_y
-        factor = np.ones(A[0].shape)
-        for i in range(self.N):
-            factor *= F[i, np.indices(A[0].shape)[i]]
+        factor = torch.ones((batch_size, * A[0].shape))
+        for b in range(batch_size):
+            for i in range(self.N):
+                factor[b] *= F[b][i, np.indices(A[0].shape)[i]] # np.indices() works perfectly with torch tensors.
 
-        for y in range(self.Y):
-            h[y] = np.sum(A[y] * factor) # Multiply A_y with the factor and sum up all the elements
+        for b in range(batch_size):
+            for y in range(self.Y):
+                h[b][y] = torch.sum(A[y] * factor[b]) # Multiply A_y with the factor and sum up all the elements
 
         return h
