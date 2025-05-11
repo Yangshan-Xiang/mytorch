@@ -95,10 +95,74 @@ class HTModel(nn.Module):
         factor = torch.ones((batch_size, * A[0].shape))
         for b in range(batch_size):
             for i in range(self.N):
-                factor[b] *= F[b][i, np.indices(A[0].shape)[i]] # np.indices() works perfectly with torch tensors.
+                factor[b] *= F[b][i, np.indices(A[0].shape)[i]] # np.indices() works perfectly with torch tensors
 
         for b in range(batch_size):
             for y in range(self.Y):
                 h[b][y] = torch.sum(A[y] * factor[b]) # Multiply A_y with the factor and sum up all the elements
 
         return h
+
+def train():
+    """
+    Train the HT model on MNIST dataset. LOW accuracy are expected due to structure constraints.
+    For example, the transformation of input image from shape (28, 28) to the required shape (N, s) by splitting
+    and vectorization can damage the spatial information of the original image.
+
+    """
+    # Hyperparameters
+    N = 4
+    s = int(28 * 28 / N)
+    M = 2
+    Y = 10
+    ranks = [16, 8]
+    batch_size = 64
+    learning_rate = 0.001
+    epochs = 10
+
+    # Define the model, choose the loss function and optimizer
+    model = HTModel(N, s, M, Y, ranks)
+    # Use GPU
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = model.to(device)
+
+    criterion = nn.CrossEntropyLoss() # Cross entropy loss function
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate) # Adam optimizer
+
+    # Load and normalize the MNIST dataset
+    transform = transforms.Compose([transforms.ToTensor(),
+                                    transforms.Normalize((0.1307,), (0.3081,))])
+    # Initialize the dataloaders
+    train_dataset = datasets.MNIST('./data', train=True, download=True, transform=transform)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+
+    test_dataset = datasets.MNIST('./data', train=False, download=True, transform=transform)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+
+    for epoch in range(epochs):
+        model.train()
+        running_loss = 0
+        correct = 0
+        total = 0
+        for images, labels in train_loader:
+            # Be careful with the batch size of the LAST batch, might be different and cause error
+            images, labels = images.to(device), labels.to(device)
+            # Transform the images from shape (batch_size, 1, 28, 28) to the required shape (batch_size, N, s)
+            images = images.squeeze(1).reshape(-1, N, s)
+
+            output = model(images)
+            loss = criterion(output, labels)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            running_loss += loss.item()
+
+            _, predicted = output.max(1)
+            total += labels.shape[0]
+            correct += predicted.eq(labels).sum().item()
+
+        print(f'epoch: {epoch}/{epochs}, loss: {running_loss / len(train_loader):.4f}, acc: {100 * correct / total:.2f}%')
+
+if __name__ == "__main__":
+    train()
