@@ -81,7 +81,7 @@ class HTModel(nn.Module):
                                           self.params[l][j, gamma, alpha])
             phis.append(phi)
         # Compute the final coefficient tensor A_y using the phi tensors
-        A = torch.zeros((self.Y, * [self.M] * self.N)) # Evert A_y tensor has the shape of M ^ N
+        A = torch.zeros((self.Y, * [self.M] * self.N)) # Every A_y tensor has the shape of M ^ N
         for y in range(self.Y):
             for alpha in range(self.ranks[-1]):
                 # Again this EXACTLY matches the expression of A_y depicted in the equation (4)
