@@ -105,7 +105,7 @@ class HTModel(nn.Module):
 
 def train():
     """
-    Train the HT model on MNIST dataset. LOW accuracy are expected due to structure constraints.
+    Train the HT model on MNIST dataset and test the model. LOW accuracy are expected due to structure constraints.
     For example, the transformation of input image from shape (28, 28) to the required shape (N, s) by splitting
     and vectorization can damage the spatial information of the original image.
 
@@ -163,6 +163,22 @@ def train():
             correct += predicted.eq(labels).sum().item()
 
         print(f'epoch: {epoch}/{epochs}, loss: {running_loss / len(train_loader):.4f}, acc: {100 * correct / total:.2f}%')
+
+    # Test the trained model
+    model.eval()
+    correct = 0
+    total = 0
+    with torch.no_grad(): # No gradient update
+        for images, labels in test_loader:
+            images, labels = images.to(device), labels.to(device)
+            images = images.squeeze(1).reshape(-1, N, s)
+
+            outputs = model(images)
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += predicted.eq(labels).sum().item()
+
+    print(f'test accuracy: {100 * correct / total:.2f}%')
 
 if __name__ == "__main__":
     train()
