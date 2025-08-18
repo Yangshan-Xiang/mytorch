@@ -11,7 +11,7 @@ class HTModel(nn.Module):
     """
     HT model depicted in the original paper with TRAINABLE parameters.
 
-    Args:
+    Attributes:
         N (int): The number of vectorized patches of one input instance (e.g. image),
         need to be the power of 2 for simplicity as described in the paper.
         M (int): The number of representation functions, consist with the number of input channels in CNN.
