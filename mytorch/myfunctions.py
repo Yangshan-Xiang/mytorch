@@ -111,14 +111,14 @@ class Rcp:
         x_val = x.value
 
         cache = x_val
-        history = History(Rcp, cache, x)
+        history = History(Rcp, cache, (x,)) # Wrap x inside a tuple to make it consistent
 
         return 1 / x_val, history
 
     @staticmethod
-    def backward(cache, d: float) -> float:
+    def backward(cache, d: float) -> tuple:
         x_val = cache
-        return -d / x_val ** 2
+        return (-d / x_val ** 2,)
 
 
 class Log:
@@ -130,14 +130,14 @@ class Log:
         x_val = x.value
 
         cache = x_val
-        history = History(Log, cache, x)
+        history = History(Log, cache, (x,))
 
         return math.log(x_val), history
 
     @staticmethod
-    def backward(cache, d: float) -> float:
+    def backward(cache, d: float) -> tuple:
         x_val = cache
-        return d / x_val
+        return (d / x_val,)
 
 
 class Exp:
@@ -151,14 +151,14 @@ class Exp:
         cache = exp_x
         # We store exp(x) instead of x because only exp(x) is required during the backward pass.
         # This avoids redundant computation.
-        history = History(Exp, cache, x)
+        history = History(Exp, cache, (x,))
 
         return exp_x, history
 
     @staticmethod
-    def backward(cache, d: float) -> float:
+    def backward(cache, d: float) -> tuple:
         exp_x = cache
-        return exp_x * d
+        return (exp_x * d,)
 
 
 class Neg:
@@ -170,13 +170,13 @@ class Neg:
         x_val = x.value
 
         cache = ()
-        history = History(Neg, cache, x)
+        history = History(Neg, cache, (x,))
 
         return -x_val, history
 
     @staticmethod
-    def backward(cache, d: float) -> float:
-        return -1 * d
+    def backward(cache, d: float) -> tuple:
+        return (-1 * d,)
 
 
 class Sigmoid:
@@ -188,14 +188,14 @@ class Sigmoid:
         sigmoid_x = 1 / (1 + math.exp(-x.value))
 
         cache = sigmoid_x
-        history = History(Sigmoid, cache, x)
+        history = History(Sigmoid, cache, (x,))
 
         return sigmoid_x, history
 
     @staticmethod
-    def backward(cache, d: float) -> float:
+    def backward(cache, d: float) -> tuple:
         sigmoid_x = cache
-        return sigmoid_x * (1 - sigmoid_x) * d
+        return (sigmoid_x * (1 - sigmoid_x) * d,)
 
 
 class ReLU:
@@ -207,14 +207,14 @@ class ReLU:
         x_val = x.value
 
         cache = x_val
-        history = History(ReLU, cache, x)
+        history = History(ReLU, cache, (x,))
 
         return max(0.0, x_val), history
 
     @staticmethod
-    def backward(cache, d: float) -> float:
+    def backward(cache, d: float) -> tuple:
         x_val = cache
-        return d * (x_val > 0)
+        return (d * (x_val > 0),)
 
 
 
