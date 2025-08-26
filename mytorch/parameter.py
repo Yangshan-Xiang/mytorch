@@ -1,5 +1,3 @@
-from sympy.physics.vector.printing import params
-
 from mytorch.myfunctions import *
 
 
