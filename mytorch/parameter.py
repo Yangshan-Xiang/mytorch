@@ -1,4 +1,4 @@
-from mytorch.myfunctions import *
+from mytorch.functions import *
 
 
 class Parameter:
@@ -11,7 +11,7 @@ class Parameter:
         derivative : The derivative with respect to leaf parameter which is indispensable for updating itself.
     """
 
-    def __init__(self, value: float, history = None):
+    def __init__(self, value: float, history=None):
 
         self.value = value
         self.history = history
@@ -109,7 +109,7 @@ class Parameter:
         ordered.reverse() # Reverse post-ordering
         return ordered
 
-    def one_step_back(self, d: float):
+    def one_step_back(self, d: float) -> list:
         """
         Move one step back from children to their parents. Apply chain rule to compute
         and assign the derivatives of the child with respect to its parents.
@@ -122,7 +122,7 @@ class Parameter:
 
         return list(zip(h.parents, h.generator.backward(h.cache, d))) # Pair the derivatives with its parents
 
-    def backward(self):
+    def backward(self) -> None:
         """
         In the backward pass, we apply the chain rule for multivariate functions to compute
         and save the derivatives of the leaf parameters. The derivatives will then be used to
@@ -143,6 +143,11 @@ class Parameter:
                     else:
                         pass
             else:
-                param.derivative = catalog[id(param)]
+                if param.derivative is None:
+                    param.derivative = 0
+                else:
+                    pass
+                param.derivative += catalog[id(param)] # Enable it to accumulate derivatives, useful in certain cases.
+
 
 

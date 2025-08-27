@@ -12,7 +12,7 @@ class History:
         parents : The input values for the generator.
 
     """
-    def __init__(self, generator = None, cache = None, parents = None):
+    def __init__(self, generator=None, cache=None, parents=None):
         self.generator = generator
         self.cache = cache
         self.parents = parents
@@ -215,53 +215,4 @@ class ReLU:
     def backward(cache, d: float) -> tuple:
         x_val = cache
         return (d * (x_val > 0),)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

@@ -133,10 +133,10 @@ def train():
     transform = transforms.Compose([transforms.ToTensor(),
                                     transforms.Normalize((0.1307,), (0.3081,))])
     # Initialize the dataloaders
-    train_dataset = datasets.MNIST('./data', train=True, download=True, transform=transform)
+    train_dataset = datasets.MNIST('../models/data', train=True, download=True, transform=transform)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
-    test_dataset = datasets.MNIST('./data', train=False, download=True, transform=transform)
+    test_dataset = datasets.MNIST('../models/data', train=False, download=True, transform=transform)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
     for epoch in range(epochs):
