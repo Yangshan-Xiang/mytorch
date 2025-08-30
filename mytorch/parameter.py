@@ -1,3 +1,4 @@
+
 from mytorch.functions import *
 
 
@@ -18,31 +19,31 @@ class Parameter:
         self.derivative = None
 
     def __add__(self, y):
-        return Parameter(* Add.forward(self, y))
+        return Parameter(*Add.forward(self, y))
 
     def __radd__(self, y):
         return self + y
 
     def __sub__(self, y):
-        return Parameter(* Sub.forward(self, y))
+        return Parameter(*Sub.forward(self, y))
 
     def __rsub__(self, y):
         return -(self - y)
 
     def __mul__(self, y):
-        return Parameter(* Mul.forward(self, y))
+        return Parameter(*Mul.forward(self, y))
 
     def __rmul__(self, y):
         return self * y
 
     def __truediv__(self, y):
-        return Parameter(* Div.forward(self, y))
+        return Parameter(*Div.forward(self, y))
 
     def __rtruediv__(self, y):
         return (self / y).rcp()
 
     def __neg__(self):
-        return Parameter(* Neg.forward(self))
+        return Parameter(*Neg.forward(self))
 
     def __eq__(self, y):
         y_val = getattr(y, "value", y)
@@ -50,29 +51,29 @@ class Parameter:
 
     def __gt__(self, y):
         y_val = getattr(y, "value", y)
-        return self.value > y
+        return self.value > y_val
 
     def __lt__(self, y):
         y_val = getattr(y, "value", y)
-        return self.value < y
+        return self.value < y_val
 
     def __repr__(self):
         return f"Parameter({self.value:.3f})"
 
     def log(self):
-        return Parameter(* Log.forward(self))
+        return Parameter(*Log.forward(self))
 
     def sigmoid(self):
-        return Parameter(* Sigmoid.forward(self))
+        return Parameter(*Sigmoid.forward(self))
 
     def relu(self):
-        return Parameter(* ReLU.forward(self))
+        return Parameter(*ReLU.forward(self))
 
     def exp(self):
-        return Parameter(* Exp.forward(self))
+        return Parameter(*Exp.forward(self))
 
     def rcp(self):
-        return Parameter(* Rcp.forward(self))
+        return Parameter(*Rcp.forward(self))
 
     def is_leaf(self) -> bool:
         return self.history is None
@@ -147,7 +148,64 @@ class Parameter:
                     param.derivative = 0
                 else:
                     pass
-                param.derivative += catalog[id(param)] # Enable it to accumulate derivatives, useful in certain cases.
+                param.derivative += catalog[id(param)] # Enable it to accumulate derivatives,
+                # useful in certain cases like multitask learning.
+
+
+class Parameters:
+    """
+    To
+    """
+    def __init__(self, *args):
+        self.args = args
+
+        for arg in self.params():
+            if not isinstance(arg, Parameter):
+                raise TypeError("Arguments must be Parameter instances or (nested) lists of Parameter instances.")
+
+    def params(self):
+        """
+        To
+        """
+        flattened = []
+        def extract(obj):
+            if isinstance(obj, list):
+                for element in obj:
+                    extract(element)
+            else:
+                flattened.append(obj)
+
+        for arg in self.args:
+            extract(arg)
+
+        return flattened
+
+    def append(self, x) -> None:
+        self.args = Parameters(*self.args, x).args
+
+    def __repr__(self):
+        if len(self.args) == 1:
+            return f"Parameters({self.args[0]})"
+        else:
+            return f"Parameters{self.args}"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

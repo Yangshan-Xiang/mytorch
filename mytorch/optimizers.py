@@ -48,7 +48,7 @@ class SGD(Optimizer):
                     grad += self.momentum * self.buffer[i]
                 else:
                     grad = self.buffer[i]
-            param.derivative -= self.lr * grad
+            param.value -= self.lr * grad
 
 class Adam(Optimizer):
     """
