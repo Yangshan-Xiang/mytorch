@@ -30,7 +30,7 @@ class Mul:
     @staticmethod
     def forward(x, y) -> tuple:
         x_val = x.value # Since this class is used to override method in class Parameter,
-        # the first input is always a Parameter object.
+        # the first input is always a Parameter instance.
         y_val = getattr(y, "value", y)
 
         cache = x_val, y_val # The value of x and y are needed to compute the derivatives in backward pass

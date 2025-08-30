@@ -58,7 +58,10 @@ class Parameter:
         return self.value < y_val
 
     def __repr__(self):
-        return f"Parameter({self.value:.3f})"
+        if isinstance(self.value, float):
+            return f"Parameter({self.value:.3f})"
+        else:
+            return f"Parameter({self.value})"
 
     def log(self):
         return Parameter(*Log.forward(self))
@@ -152,20 +155,20 @@ class Parameter:
                 # useful in certain cases like multitask learning.
 
 
-class Parameters:
+
+class Collection:
     """
-    To
+    In order to store and process a collection of Parameter instances or Model instances.
     """
     def __init__(self, *args):
         self.args = args
 
-        for arg in self.params():
-            if not isinstance(arg, Parameter):
-                raise TypeError("Arguments must be Parameter instances or (nested) lists of Parameter instances.")
+    def __getitem__(self, index):
+        return self.args[index]
 
-    def params(self):
+    def list(self):
         """
-        To
+        As the input arguments can contain nested list of instances, we can flatten them into one clean list.
         """
         flattened = []
         def extract(obj):
@@ -180,8 +183,17 @@ class Parameters:
 
         return flattened
 
-    def append(self, x) -> None:
-        self.args = Parameters(*self.args, x).args
+
+class Parameters(Collection):
+    """
+    To store Parameter instances, so that they can be recognized and processed during training.
+    """
+    def __init__(self, *args):
+        super().__init__(*args)
+
+        for arg in self.list():
+            if not isinstance(arg, Parameter):
+                raise TypeError("Arguments must be Parameter instances or (nested) lists of Parameter instances.")
 
     def __repr__(self):
         if len(self.args) == 1:
@@ -189,21 +201,8 @@ class Parameters:
         else:
             return f"Parameters{self.args}"
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    def append(self, x) -> None:
+        self.args = Parameters(*self.args, x).args
 
 
 
