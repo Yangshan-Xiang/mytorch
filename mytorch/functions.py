@@ -56,12 +56,13 @@ class Div:
         cache = x_val, y_val
         history = History(Div, cache, (x, y))
 
-        return x_val / y_val, history
+        # Add a small epsilon to keep it numerically stable.
+        return x_val / (y_val + 1e-12), history
 
     @staticmethod
     def backward(cache, d: float) -> tuple:
         x_val, y_val = cache
-        return d / y_val, -d * x_val / y_val ** 2
+        return d / (y_val + 1e-12), -d * x_val / (y_val + 1e-12) ** 2
 
 
 class Add:
@@ -113,12 +114,12 @@ class Rcp:
         cache = x_val
         history = History(Rcp, cache, (x,)) # Wrap x inside a tuple to make it consistent
 
-        return 1 / x_val, history
+        return 1 / (x_val + 1e-12), history
 
     @staticmethod
     def backward(cache, d: float) -> tuple:
         x_val = cache
-        return (-d / x_val ** 2,)
+        return (-d / (x_val + 1e-12) ** 2,)
 
 
 class Log:
@@ -131,13 +132,12 @@ class Log:
 
         cache = x_val
         history = History(Log, cache, (x,))
-
-        return math.log(x_val), history
+        return math.log(x_val + 1e-12), history
 
     @staticmethod
     def backward(cache, d: float) -> tuple:
         x_val = cache
-        return (d / x_val,)
+        return (d / (x_val + 1e-12),)
 
 
 class Exp:

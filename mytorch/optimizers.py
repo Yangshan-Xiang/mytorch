@@ -32,7 +32,6 @@ class SGD(Optimizer):
 
     def step(self) -> None:
         for i, param in enumerate(self.params):
-            self.buffer = param.derivative
             if self.maximize:
                 grad = -1 * param.derivative
             else:
@@ -43,9 +42,9 @@ class SGD(Optimizer):
                 if self.buffer[i] is None:
                     self.buffer[i] = grad
                 else:
-                    self.buffer[i] = self.momentum * self.buffer[i] + (1 - self.dampening) * grad
+                    self.buffer[i] = self.momentum * self.buffer[i] + (1 - self.dampening) * grad # type: ignore
                 if self.nesterov:
-                    grad += self.momentum * self.buffer[i]
+                    grad += self.momentum * self.buffer[i] # type: ignore
                 else:
                     grad = self.buffer[i]
 
