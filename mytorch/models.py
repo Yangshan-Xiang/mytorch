@@ -63,8 +63,6 @@ class Models(Collection):
         self.args = Models(*self.args, x).args
 
 
-
-
 class Linear(Model):
     """
     The linear model.
@@ -139,5 +137,4 @@ class MLP(Model):
         out = [o.relu() for o in self.hidden_layers(out)]
 
         return self.out_layer(out)
-
 

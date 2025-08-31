@@ -18,64 +18,64 @@ class Parameter:
         self.history = history
         self.derivative = None
 
-    def __add__(self, y):
+    def __add__(self, y) -> 'Parameter':
         return Parameter(*Add.forward(self, y))
 
-    def __radd__(self, y):
+    def __radd__(self, y) -> 'Parameter':
         return self + y
 
-    def __sub__(self, y):
+    def __sub__(self, y) -> 'Parameter':
         return Parameter(*Sub.forward(self, y))
 
-    def __rsub__(self, y):
+    def __rsub__(self, y) -> 'Parameter':
         return -(self - y)
 
-    def __mul__(self, y):
+    def __mul__(self, y) -> 'Parameter':
         return Parameter(*Mul.forward(self, y))
 
-    def __rmul__(self, y):
+    def __rmul__(self, y) -> 'Parameter':
         return self * y
 
-    def __truediv__(self, y):
+    def __truediv__(self, y) -> 'Parameter':
         return Parameter(*Div.forward(self, y))
 
-    def __rtruediv__(self, y):
+    def __rtruediv__(self, y) -> 'Parameter':
         return (self / y).rcp()
 
-    def __neg__(self):
+    def __neg__(self) -> 'Parameter':
         return Parameter(*Neg.forward(self))
 
-    def __eq__(self, y):
+    def __eq__(self, y) -> bool:
         y_val = getattr(y, "value", y)
         return self.value == y_val
 
-    def __gt__(self, y):
+    def __gt__(self, y) -> bool:
         y_val = getattr(y, "value", y)
         return self.value > y_val
 
-    def __lt__(self, y):
+    def __lt__(self, y) -> bool:
         y_val = getattr(y, "value", y)
         return self.value < y_val
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         if isinstance(self.value, float):
             return f"Parameter({self.value:.3f})"
         else:
             return f"Parameter({self.value})"
 
-    def log(self):
+    def log(self) -> 'Parameter':
         return Parameter(*Log.forward(self))
 
-    def sigmoid(self):
+    def sigmoid(self) -> 'Parameter':
         return Parameter(*Sigmoid.forward(self))
 
-    def relu(self):
+    def relu(self) -> 'Parameter':
         return Parameter(*ReLU.forward(self))
 
-    def exp(self):
+    def exp(self) -> 'Parameter':
         return Parameter(*Exp.forward(self))
 
-    def rcp(self):
+    def rcp(self) -> 'Parameter':
         return Parameter(*Rcp.forward(self))
 
     def is_leaf(self) -> bool:
@@ -153,7 +153,6 @@ class Parameter:
                     pass
                 param.derivative += catalog[id(param)] # Enable it to accumulate derivatives,
                 # useful in certain cases like multitask learning.
-
 
 
 class Collection:

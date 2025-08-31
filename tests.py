@@ -1,11 +1,16 @@
 import unittest
 import math
+
+from mytorch.models import Linear
 from mytorch.parameter import Parameter
 
 
 class TestFunctions(unittest.TestCase):
 
     def setUp(self):
+        self.pts = [[1, 2], [3, 4]]
+        self.linear_1 = Linear(2, 1)
+        self.linear_2 = Linear(2, 2)
         self.x = Parameter(10)
         self.y = Parameter(10)
         self.z = 10
@@ -42,6 +47,15 @@ class TestFunctions(unittest.TestCase):
 
         self.assertEqual(self.x.derivative, 0.05)
         self.assertEqual(self.y.derivative, 0.1)
+
+    def test_Linear(self):
+        for pt in self.pts:
+            self.assertEqual(len(self.linear_1(pt)), 1)
+            self.assertEqual(len(self.linear_2(pt)), 2)
+
+
+
+
 
 
 
