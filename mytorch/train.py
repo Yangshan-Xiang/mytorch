@@ -34,12 +34,16 @@ class Data:
         return xs, ys
 
 
+
+
+
 def train():
     pts = 100
     lr = 0.001
-    epochs = 300
+    epochs = 500
     model = MLP(8, 1)
     optimizer = Adam(model.get_params(), lr) # Adam optimizer is much better and more stable than SGD optimizer
+
 
 
     for epoch in range(1, epochs + 1):
@@ -65,8 +69,8 @@ def train():
             loss.backward()
             optimizer.step()
 
-        if epoch % 10 == 0 or epoch == epochs:
-            print('epoch:', epoch, f'accuracy: {correct * 100 / pts :.2f}%', f'loss: {total_loss.value / pts ** 2:.3f}')
+        if epoch % 10 == 0:
+            print(f'epoch: {epoch}/{epochs}, accuracy: {correct * 100 / pts :.2f}%, loss: {total_loss.value / pts ** 2:.4f}')
 
 
 if __name__ == "__main__":
