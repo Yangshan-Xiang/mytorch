@@ -37,9 +37,10 @@ class Data:
 def train():
     pts = 100
     lr = 0.001
-    epochs = 500
+    epochs = 300
     model = MLP(8, 1)
-    optimizer = SGD(model.get_params(), lr, momentum=0.9)
+    optimizer = Adam(model.get_params(), lr) # Adam optimizer is much better and more stable than SGD optimizer
+
 
     for epoch in range(1, epochs + 1):
         correct = 0
