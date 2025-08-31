@@ -29,7 +29,8 @@ def train():
                     label.append(1)
             return pts, label
 
-        xs, ys = data(10)
+        n = 10
+        xs, ys = data(n)
         for i in range(len(xs)):
             pred = model(xs[i])[0].sigmoid()
             y = ys[i]
@@ -50,7 +51,7 @@ def train():
             optimizer.step()
 
         if epoch % 10 == 0 or epoch == epochs:
-            print('epoch:', epoch, 'correct:', correct, f'loss: {total_loss.value:.3f}')
+            print('epoch:', epoch, f'accuracy: {correct * 100 / n ** 2:.2f}%', f'loss: {total_loss.value / n ** 2:.3f}')
 
 
 if __name__ == "__main__":
