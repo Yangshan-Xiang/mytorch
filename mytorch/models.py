@@ -1,4 +1,3 @@
-from mytorch.optimizers import *
 from mytorch.parameter import *
 import random
 

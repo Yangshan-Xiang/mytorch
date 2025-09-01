@@ -39,6 +39,8 @@ class SGD(Optimizer):
                 grad = param.derivative
             if self.weight_decay != 0:
                 grad += self.weight_decay * param.value
+            else:
+                pass
             if self.momentum != 0:
                 if self.buffer[i] is None:
                     self.buffer[i] = grad
@@ -48,6 +50,8 @@ class SGD(Optimizer):
                     grad += self.momentum * self.buffer[i] # type: ignore
                 else:
                     grad = self.buffer[i]
+            else:
+                pass
 
             param.value -= self.lr * grad
 
@@ -56,7 +60,8 @@ class Adam(Optimizer):
     """
     The Adam optimizer.
     """
-    def __init__(self, params: list, lr: float=0.001, maximize: bool=False, weight_decay: float=0, betas: tuple=(0.9, 0.999), eps: float=1e-08, amsgrad: bool=False):
+    def __init__(self, params: list, lr: float=0.001, maximize: bool=False, weight_decay: float=0,
+                 betas: tuple=(0.9, 0.999), eps: float=1e-8, amsgrad: bool=False):
         super().__init__(params, lr, maximize, weight_decay)
         self.betas = betas
         self.eps = eps
@@ -76,6 +81,8 @@ class Adam(Optimizer):
                 grad = param.derivative
             if self.weight_decay != 0:
                 grad += self.weight_decay * param.value
+            else:
+                pass
             self.m[i] = self.betas[0] * self.m[i] + (1 - self.betas[0]) * grad
             self.v[i] = self.betas[1] * self.v[i] + (1 - self.betas[1]) * grad ** 2
             m_hat = self.m[i] / (1 - self.betas[0] ** self.t)
