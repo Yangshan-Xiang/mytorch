@@ -34,12 +34,24 @@ class Data:
         return xs, ys
 
 
-def train():
+def train(model: str, optim: str):
     pts = 100
-    lr = 0.001
     epochs = 500
-    model = MLP(8, 1)
-    optimizer = Adam(model.get_params(), lr) # Adam optimizer is much better and more stable than SGD optimizer
+    if model == 'Linear':
+        model = Linear(2, 1)
+    elif model == 'MLP':
+        model = MLP(8, 1)
+    else:
+        raise ValueError(f'Model {model} is not supported')
+
+    if optim == 'Adam':
+        optimizer = Adam(model.get_params(), lr = 0.001) # Adam optimizer is much better and more stable than SGD optimizer
+    elif optim == 'Adagrad':
+        optimizer = Adagrad(model.get_params(), lr = 0.1)
+    elif optim == 'SGD':
+        optimizer = SGD(model.get_params(), lr = 0.001)
+    else:
+        raise ValueError(f'Optimizer {optim} is not supported')
 
     for epoch in range(1, epochs + 1):
         correct = 0
@@ -69,4 +81,4 @@ def train():
 
 
 if __name__ == "__main__":
-    train()
+    train('MLP', 'Adagrad')

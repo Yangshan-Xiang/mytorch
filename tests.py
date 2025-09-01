@@ -74,6 +74,14 @@ class TestFunctions(unittest.TestCase):
         Adam([self.x], lr).step()
         self.assertEqual(self.x.value, 10 - lr * 2 / (2 + 1e-8))
 
+    def test_Adagrad(self):
+        self.assertIsNone(self.x.derivative)
+        self.x.derivative = 2
+        lr = 0.1
+        Adagrad([self.x], lr).step()
+        self.assertEqual(self.x.value, 10 - lr * 2 / (2 + 1e-8)) # As you can see, it is the same as Adam
+
+
     def test_zero_grad(self):
         self.assertIsNone(self.x.derivative)
         self.assertIsNone(self.y.derivative)
