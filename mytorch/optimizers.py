@@ -20,7 +20,9 @@ class Optimizer:
 
 class SGD(Optimizer):
     """
-    The Stochastic Gradient Descent optimizer.
+    The Stochastic Gradient Descent optimizer. It is the most classic, well-known and fundamental optimizer,
+    however, it is not stable enough, performance can fluctuate from time to time, no longer an ideal pick
+    compare with other modern optimizers nowadays.
 
     """
     def __init__(self, params: list, lr: float=0.001, maximize: bool=False, weight_decay: float=0,
@@ -52,19 +54,18 @@ class SGD(Optimizer):
                     grad = self.buffer[i]
             else:
                 pass
-
             param.value -= self.lr * grad
 
 
 class Adam(Optimizer):
     """
-    The Adam optimizer.
+    The Adam optimizer. It is very stable and smooth in most training occasions, the go-to choice for most people.
     """
     def __init__(self, params: list, lr: float=0.001, maximize: bool=False, weight_decay: float=0,
                  betas: tuple=(0.9, 0.999), eps: float=1e-8, amsgrad: bool=False):
         super().__init__(params, lr, maximize, weight_decay)
         self.betas = betas
-        self.eps = eps
+        self.eps = eps # For numerical stability
         self.amsgrad = amsgrad
         self.t = 0 # Keep track of which step we are at
         self.m = [0] * len(params) # The 1st moment
@@ -91,8 +92,38 @@ class Adam(Optimizer):
                 v_hat = self.v_max[i] / (1 - self.betas[1] ** self.t)
             else:
                 v_hat = self.v[i] / (1 - self.betas[1] ** self.t)
-
             param.value -= self.lr * m_hat / (math.sqrt(v_hat) + self.eps)
+
+
+class Adagrad(Optimizer):
+    """
+    The Adagrad optimizer. It often requires larger learning rate like 0.1 to achieve a rather good performance.
+    """
+    def __init__(self, params: list, lr: float=0.1, maximize: bool=False, weight_decay: float=0,
+                 lr_decay: float=0, initial: float=0, eps: float=1e-8):
+        super().__init__(params, lr, maximize, weight_decay)
+        self.lr_decay = lr_decay
+        self.state_sum = [initial] * len(params) # Used to accumulate the squared gradient from previous steps.
+        self.eps = eps # For numerical stability
+        self.t = 1
+
+    def step(self) -> None:
+        self.t += 1
+        for i, param in enumerate(self.params):
+            grad = param.derivative
+            lr_tilde = self.lr / (1 + (self.t - 1) * self.lr_decay)
+            if self.weight_decay != 0:
+                grad += self.weight_decay * param.value
+            else:
+                pass
+            self.state_sum[i] += grad ** 2
+            param.value -= lr_tilde * grad / (math.sqrt(self.state_sum[i]) + self.eps)
+
+
+
+
+
+
 
 
 
