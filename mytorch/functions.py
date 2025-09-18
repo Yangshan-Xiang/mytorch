@@ -7,9 +7,9 @@ class History:
     be used in the backward pass.
 
     Attributes:
-        generator : The function which generates the value of the parameter.
-        cache : Save computed values during the forward pass to avoid unnecessary computation in the backward pass.
-        parents : The input values for the generator.
+        generator (type): The function which generates the value of the parameter.
+        cache (tuple): Save computed values during the forward pass to avoid unnecessary computation in the backward pass.
+        parents (tuple): The input values for the generator.
 
     """
     def __init__(self, generator=None, cache=None, parents=None):
@@ -20,6 +20,7 @@ class History:
     def __repr__(self):
         return f"History(generator={self.generator}, parents={self.parents})"
 
+eps = 1e-12 # A very small value for numerical stability
 
 class Mul:
     """
@@ -57,12 +58,12 @@ class Div:
         history = History(Div, cache, (x, y))
 
         # Add a small epsilon to keep it numerically stable.
-        return x_val / (y_val + 1e-12), history
+        return x_val / (y_val + eps), history
 
     @staticmethod
     def backward(cache, d: float) -> tuple:
         x_val, y_val = cache
-        return d / (y_val + 1e-12), -d * x_val / (y_val + 1e-12) ** 2
+        return d / (y_val + eps), -d * x_val / (y_val + eps) ** 2
 
 
 class Add:
@@ -114,12 +115,12 @@ class Rcp:
         cache = x_val
         history = History(Rcp, cache, (x,)) # Wrap x inside a tuple to make it consistent
 
-        return 1 / (x_val + 1e-12), history
+        return 1 / (x_val + eps), history
 
     @staticmethod
     def backward(cache, d: float) -> tuple:
         x_val = cache
-        return (-d / (x_val + 1e-12) ** 2,)
+        return (-d / (x_val + eps) ** 2,)
 
 
 class Log:
@@ -132,12 +133,12 @@ class Log:
 
         cache = x_val
         history = History(Log, cache, (x,))
-        return math.log(x_val + 1e-12), history
+        return math.log(x_val + eps), history
 
     @staticmethod
     def backward(cache, d: float) -> tuple:
         x_val = cache
-        return (d / (x_val + 1e-12),)
+        return (d / (x_val + eps),)
 
 
 class Exp:

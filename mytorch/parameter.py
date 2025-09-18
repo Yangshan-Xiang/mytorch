@@ -6,9 +6,9 @@ class Parameter:
     A custom class of numbers in order to keep track of their computation histories.
 
     Attributes:
-        value : The value of the parameter.
-        history : The history of the parameter represented by a class object with three attributes.
-        derivative : The derivative with respect to leaf parameter which is indispensable for updating itself.
+        value (float): The value of the parameter.
+        history (History): The history of the parameter represented by a class object with three attributes.
+        derivative (float): The derivative with respect to leaf parameter which is indispensable for updating itself.
     """
 
     def __init__(self, value: float, history=None):
