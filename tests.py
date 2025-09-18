@@ -1,7 +1,10 @@
 import unittest
+
 from mytorch.models import *
 from mytorch.optimizers import *
 from mytorch.parameter import *
+from mytorch.tensor.operations import *
+from mytorch.tensor.tensor import *
 
 
 class TestFunctions(unittest.TestCase):
@@ -18,6 +21,34 @@ class TestFunctions(unittest.TestCase):
         self.b = self.y * self.z
         self.c = self.a + self.b
         self.output = self.c.log()
+
+        self.storage = [1, 2, 3, 4, 5, 6]
+        self.shape = (2, 2) # Only need 4 elements in the storage
+        self.stride = (1, 2) # Transposed
+        self.offset = 2 # Starting from the 3rd element in the storage, skipping the first two
+        self.core = TensorCore(self.storage, self.shape, self.stride, self.offset) # Representing [[3, 5], [4, 6]]
+        self.broadcast_shape = (2, 2, 2)
+
+        self.storage2 = [1, 2, 3, 4]
+        self.shape2 = (2, 1, 2)
+        self.stride2 = (2, 2, 1)
+        self.offset2 = 0
+        self.core2 = TensorCore(self.storage2, self.shape2, self.stride2, self.offset2)
+
+        self.storage3 = [1, 2, 3, 4, 5, 6]
+        self.shape3 = (3, 2)
+        self.stride3 = (1, 3)
+        self.offset3 = 0
+        self.core3 = TensorCore(self.storage3, self.shape3, self.stride3, self.offset3)
+
+        self.storage4 = [1, 2, 3, 4, 5, 6]
+        self.shape4 = (3, 2)
+        self.stride4 = (2, 1)
+        self.offset4 = 0
+        self.core4 = TensorCore(self.storage4, self.shape4, self.stride4, self.offset4)
+
+
+
 
     def test_topological_ordering(self):
         right_ordering = [id(self.output), id(self.c), id(self.b), id(self.a), id(self.y), id(self.x)]
@@ -93,19 +124,71 @@ class TestFunctions(unittest.TestCase):
         self.assertIsNone(self.x.derivative)
         self.assertIsNone(self.y.derivative)
 
+    def test_to_storage_idx(self):
+        self.assertEqual(to_storage_idx((0, 0), self.stride, self.offset), 2)
+        self.assertEqual(to_storage_idx((0, 1), self.stride, self.offset), 4)
+        self.assertEqual(to_storage_idx((1, 0), self.stride, self.offset), 3)
+        self.assertEqual(to_storage_idx((1, 1), self.stride, self.offset), 5)
+
+    def test_to_tensor_idx(self):
+        self.assertEqual(to_tensor_idx(0, self.shape), (0, 0))
+        self.assertEqual(to_tensor_idx(1, self.shape), (0, 1))
+        self.assertEqual(to_tensor_idx(2, self.shape), (1, 0))
+        self.assertEqual(to_tensor_idx(3, self.shape), (1, 1))
+
+    def test_from_broadcast_idx(self):
+        self.assertEqual(from_broadcast_idx((0, 0, 0), self.broadcast_shape, self.shape), (0, 0))
+        self.assertEqual(from_broadcast_idx((0, 0, 1), self.broadcast_shape, self.shape), (0, 1))
+        self.assertEqual(from_broadcast_idx((0, 1, 0), self.broadcast_shape, self.shape), (1, 0))
+        self.assertEqual(from_broadcast_idx((0, 1, 1), self.broadcast_shape, self.shape), (1, 1))
+        self.assertEqual(from_broadcast_idx((1, 0, 0), self.broadcast_shape, self.shape), (0, 0))
+        self.assertEqual(from_broadcast_idx((1, 0, 1), self.broadcast_shape, self.shape), (0, 1))
+        self.assertEqual(from_broadcast_idx((1, 1, 0), self.broadcast_shape, self.shape), (1, 0))
+        self.assertEqual(from_broadcast_idx((1, 1, 1), self.broadcast_shape, self.shape), (1, 1))
+
+    def test_is_contiguous(self):
+        self.assertEqual(self.core.is_contiguous(), False)
+        self.assertEqual(self.core2.is_contiguous(), True)
+        self.assertEqual(self.core3.is_contiguous(), False)
+        self.assertEqual(self.core4.is_contiguous(), True)
 
 
+    def test_contiguous_stride(self):
+        self.assertEqual(self.core.contiguous_stride(), (2, 1))
+        self.assertEqual(self.core2.contiguous_stride(), (2, 2, 1))
+        self.assertEqual(self.core3.contiguous_stride(), (2, 1))
+        self.assertEqual(self.core4.contiguous_stride(), (2, 1))
 
+    def test_broadcastable(self):
+        self.assertEqual(self.core.broadcastable(self.core2), True)
+        self.assertEqual(self.core.broadcastable(self.core3), False)
+        self.assertEqual(self.core.broadcastable(self.core4), False)
+        self.assertEqual(self.core2.broadcastable(self.core3), True)
+        self.assertEqual(self.core2.broadcastable(self.core4), True)
+        self.assertEqual(self.core3.broadcastable(self.core4), True)
 
+    def test_mapping(self):
+        output1 = map(neg)(self.core)
+        storage1 = output1.storage
+        shape1 = output1.shape
+        stride1 = output1.stride
+        offset1 = output1.offset
 
+        output2 = map(neg)(self.core, (2, 2, 2))
+        storage2 = output2.storage
+        shape2 = output2.shape
+        stride2 = output2.stride
+        offset2 = output2.offset
 
+        self.assertEqual(storage1.tolist(), [-3, -5, -4, -6])
+        self.assertEqual(shape1, (2, 2))
+        self.assertEqual(stride1, (2, 1))
+        self.assertEqual(offset1, 0)
 
-
-
-
-
-
-
+        self.assertEqual(storage2.tolist(), [-3, -5, -4, -6, -3, -5, -4, -6])
+        self.assertEqual(shape2, (2, 2, 2))
+        self.assertEqual(stride2, (4, 2, 1))
+        self.assertEqual(offset2, 0)
 
 
 

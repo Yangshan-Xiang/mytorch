@@ -1,16 +1,18 @@
 import math
 
+
 class Optimizer:
     """
     The fundamental construction for an optimizer, will be inherited by actual optimizers.
     """
+
     def __init__(self, params: list, lr: float, maximize: bool, weight_decay: float):
         self.params = params
         self.lr = lr
         self.maximize = maximize
         self.weight_decay = weight_decay
 
-    def zero_grad(self, none_grad: bool=True) -> None:
+    def zero_grad(self, none_grad: bool = True) -> None:
         for param in self.params:
             if none_grad:
                 param.derivative = None
@@ -25,13 +27,14 @@ class SGD(Optimizer):
     compare with other modern optimizers nowadays.
 
     """
-    def __init__(self, params: list, lr: float=0.001, maximize: bool=False, weight_decay: float=0,
-                 momentum: float=0, dampening: float=0, nesterov: bool=False):
+
+    def __init__(self, params: list, lr: float = 0.001, maximize: bool = False, weight_decay: float = 0,
+                 momentum: float = 0, dampening: float = 0, nesterov: bool = False):
         super().__init__(params, lr, maximize, weight_decay)
-        self.momentum = momentum # Use the momentum to utilize the gradient calculated in last step.
+        self.momentum = momentum  # Use the momentum to utilize the gradient calculated in last step.
         self.dampening = dampening
         self.nesterov = nesterov
-        self.buffer = [None] * len(params) # Store necessary values when SGD needs momentum
+        self.buffer = [None] * len(params)  # Store necessary values when SGD needs momentum
 
     def step(self) -> None:
         for i, param in enumerate(self.params):
@@ -47,9 +50,9 @@ class SGD(Optimizer):
                 if self.buffer[i] is None:
                     self.buffer[i] = grad
                 else:
-                    self.buffer[i] = self.momentum * self.buffer[i] + (1 - self.dampening) * grad # type: ignore
+                    self.buffer[i] = self.momentum * self.buffer[i] + (1 - self.dampening) * grad  # type: ignore
                 if self.nesterov:
-                    grad += self.momentum * self.buffer[i] # type: ignore
+                    grad += self.momentum * self.buffer[i]  # type: ignore
                 else:
                     grad = self.buffer[i]
             else:
@@ -61,16 +64,17 @@ class Adam(Optimizer):
     """
     The Adam optimizer. It is very stable and smooth in most training occasions, the go-to choice for most people.
     """
-    def __init__(self, params: list, lr: float=0.001, maximize: bool=False, weight_decay: float=0,
-                 betas: tuple=(0.9, 0.999), eps: float=1e-8, amsgrad: bool=False):
+
+    def __init__(self, params: list, lr: float = 0.001, maximize: bool = False, weight_decay: float = 0,
+                 betas: tuple = (0.9, 0.999), eps: float = 1e-8, amsgrad: bool = False):
         super().__init__(params, lr, maximize, weight_decay)
         self.betas = betas
-        self.eps = eps # For numerical stability
+        self.eps = eps  # For numerical stability
         self.amsgrad = amsgrad
-        self.t = 0 # Keep track of which step we are at
-        self.m = [0] * len(params) # The 1st moment
-        self.v = [0] * len(params) # The 2nd moment
-        self.v_max = [0] * len(params) # The maximum between the current 2nd moment and the 2nd moment from last step,
+        self.t = 0  # Keep track of which step we are at
+        self.m = [0] * len(params)  # The 1st moment
+        self.v = [0] * len(params)  # The 2nd moment
+        self.v_max = [0] * len(params)  # The maximum between the current 2nd moment and the 2nd moment from last step,
         # only needed when amsgrad is True.
 
     def step(self) -> None:
@@ -99,12 +103,13 @@ class Adagrad(Optimizer):
     """
     The Adagrad optimizer. It often requires larger learning rate like 0.1 to achieve a rather good performance.
     """
-    def __init__(self, params: list, lr: float=0.1, maximize: bool=False, weight_decay: float=0,
-                 lr_decay: float=0, initial: float=0, eps: float=1e-8):
+
+    def __init__(self, params: list, lr: float = 0.1, maximize: bool = False, weight_decay: float = 0,
+                 lr_decay: float = 0, initial: float = 0, eps: float = 1e-8):
         super().__init__(params, lr, maximize, weight_decay)
         self.lr_decay = lr_decay
-        self.state_sum = [initial] * len(params) # Used to accumulate the squared gradient from previous steps.
-        self.eps = eps # For numerical stability
+        self.state_sum = [initial] * len(params)  # Used to accumulate the squared gradient from previous steps.
+        self.eps = eps  # For numerical stability
         self.t = 1
 
     def step(self) -> None:
@@ -118,34 +123,3 @@ class Adagrad(Optimizer):
                 pass
             self.state_sum[i] += grad ** 2
             param.value -= lr_tilde * grad / (math.sqrt(self.state_sum[i]) + self.eps)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

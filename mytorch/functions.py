@@ -12,7 +12,7 @@ class History:
         parents (tuple): The input values for the generator.
 
     """
-    def __init__(self, generator=None, cache=None, parents=None):
+    def __init__(self, generator = None, cache = None, parents = None):
         self.generator = generator
         self.cache = cache
         self.parents = parents

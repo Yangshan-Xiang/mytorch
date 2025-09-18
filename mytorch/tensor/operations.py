@@ -15,4 +15,3 @@ def div(x: float, y: float):
 def neg(x: float) -> float:
     return -x
 
-

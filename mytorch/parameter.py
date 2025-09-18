@@ -11,7 +11,7 @@ class Parameter:
         derivative (float): The derivative with respect to leaf parameter which is indispensable for updating itself.
     """
 
-    def __init__(self, value: float, history=None):
+    def __init__(self, value: float, history = None):
 
         self.value = value
         self.history = history
