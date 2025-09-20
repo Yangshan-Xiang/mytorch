@@ -1,6 +1,8 @@
 from numpy import array, ndarray # We use numpy array instead of python list for our tensor storage to improve performance.
 import math
-from mytorch.functions import History
+from typing import Union
+
+
 
 
 class Tensor:
@@ -58,38 +60,89 @@ class Tensor:
     def info(self):
         return self.storage, self.shape, self.stride, self.offset
 
+    def numpy(self):
+        """
+        It returns the tensor as a numpy array.
+        """
+        return
+
+
+
     def is_contiguous(self):
+        """
+
+        """
         return self.stride == self.contiguous_stride()
 
     def contiguous_stride(self):
+        """
+
+        """
         shape = self.shape
         stride = [1] * len(shape)
         for i, s in enumerate(tuple(reversed(shape[1:]))):
             stride[i + 1] = stride[i] * s
         return tuple(reversed(stride))
 
-    def broadcastable(self, other: 'Tensor') -> bool:
+    def broadcastable(self, other: 'Tensor') -> Union[bool, tuple]:
         """
-        According to the broadcasting rules, we check whether the two tensors are broadcastable.
+        According to the broadcasting rules, we check whether the two tensors are broadcastable,
+        if they aren't, returns False, if they are, returns the shape of the broadcast tensor.
+
+        Args:
+            self (Tensor): A Tensor object.
+            other (Tensor): The other tensor.
+
+        Returns:
+            Union[bool, tuple]: False if the inputs are not broadcastable, the shape of the broadcast tensor otherwise.
         """
+
         if not isinstance(other, Tensor):
             raise TypeError(f"Expected Tensor, got {type(other)} instead.")
         else:
             self_shape = self.shape
             other_shape = other.shape
+            if len(self_shape) > len(other_shape):
+                broadcast_shape = list(self_shape)
+            else:
+                broadcast_shape = list(other_shape)
 
         for i in range(-1, -min(len(self_shape), len(other_shape)) - 1, -1):
-            if self_shape[i] != other_shape[i] and self_shape[i] != 1 and other_shape[i] != 1:
-                # We achieve this by comparing the size of the corresponding dimension of two tensors.
-                return False
+            if self_shape[i] != other_shape[i]:
+                if self_shape[i] != 1:
+                    if other_shape[i] != 1:
+                        return False
+                    else:
+                        broadcast_shape[i] = self_shape[i]
+                else:
+                    broadcast_shape[i] = other_shape[i]
             else:
-                pass
-        return True
+                broadcast_shape[i] = self_shape[i]
+
+        return tuple(broadcast_shape)
 
     def __repr__(self):
         return f"Tensor(storage={self.storage}, shape={self.shape}, stride={self.stride}, offset={self.offset})"
 
 
+class History:
+    """
+    In order to store all the necessary history information of a parameter which will later
+    be used in the backward pass.
+
+    Attributes:
+        generator: The function which generates the value of the parameter.
+        cache: Save computed values during the forward pass to avoid unnecessary computation in the backward pass.
+        parents (tuple): The input values for the generator.
+
+    """
+    def __init__(self, generator, cache, parents: tuple):
+        self.generator = generator
+        self.cache = cache
+        self.parents = parents
+
+    def __repr__(self):
+        return f"History(generator={self.generator}, parents={self.parents})"
 
 
 class TensorParameter:
@@ -98,50 +151,12 @@ class TensorParameter:
 
     Attributes:
 
-
-
     """
 
     def __init__(self, tensor: Tensor, history: History = None):
         self.tensor = tensor
         self.history = history
         self.gradient = None
-
-    def __add__(self, y) -> 'TensorParameter':
-        return
-
-    def __radd__(self, y) -> 'TensorParameter':
-        return
-
-    def __sub__(self, y) -> 'TensorParameter':
-        return
-
-    def __rsub__(self, y) -> 'TensorParameter':
-        return
-
-    def __mul__(self, y) -> 'TensorParameter':
-        return
-
-    def __rmul__(self, y) -> 'TensorParameter':
-        return
-
-    def __truediv__(self, y) -> 'TensorParameter':
-        return
-
-    def __rtruediv__(self, y) -> 'TensorParameter':
-        return
-
-    def __neg__(self) -> 'TensorParameter':
-        return
-
-    def __eq__(self, y) -> bool:
-        return
-
-    def __gt__(self, y) -> bool:
-        return
-
-    def __lt__(self, y) -> bool:
-        return
 
     def __repr__(self):
         return f"TensorParameter(tensor={self.tensor}, history={self.history}, gradient={self.gradient})"

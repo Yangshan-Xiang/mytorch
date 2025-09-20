@@ -1,4 +1,4 @@
-from mytorch.functions import *
+from mytorch.arithmetic import *
 
 
 class Parameter:

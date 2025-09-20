@@ -4,7 +4,7 @@ from mytorch.models import *
 from mytorch.optimizers import *
 from mytorch.parameter import *
 
-from mytorch.tensor.functions import *
+from mytorch.tensor.arithmetic import *
 
 
 class TestFunctions(unittest.TestCase):
@@ -27,7 +27,6 @@ class TestFunctions(unittest.TestCase):
         self.stride = (1, 2) # Transposed
         self.offset = 2 # Starting from the 3rd element in the storage, skipping the first two
         self.tensor = Tensor(self.storage, self.shape, self.stride, self.offset) # Representing [[3, 5], [4, 6]]
-        self.broadcast_shape = (2, 2, 2)
 
         self.storage2 = [1, 2, 3, 4]
         self.shape2 = (2, 1, 2)
@@ -137,14 +136,14 @@ class TestFunctions(unittest.TestCase):
         self.assertEqual(to_tensor_idx(3, self.shape), (1, 1))
 
     def test_from_broadcast_idx(self):
-        self.assertEqual(from_broadcast_idx((0, 0, 0), self.broadcast_shape, self.shape), (0, 0))
-        self.assertEqual(from_broadcast_idx((0, 0, 1), self.broadcast_shape, self.shape), (0, 1))
-        self.assertEqual(from_broadcast_idx((0, 1, 0), self.broadcast_shape, self.shape), (1, 0))
-        self.assertEqual(from_broadcast_idx((0, 1, 1), self.broadcast_shape, self.shape), (1, 1))
-        self.assertEqual(from_broadcast_idx((1, 0, 0), self.broadcast_shape, self.shape), (0, 0))
-        self.assertEqual(from_broadcast_idx((1, 0, 1), self.broadcast_shape, self.shape), (0, 1))
-        self.assertEqual(from_broadcast_idx((1, 1, 0), self.broadcast_shape, self.shape), (1, 0))
-        self.assertEqual(from_broadcast_idx((1, 1, 1), self.broadcast_shape, self.shape), (1, 1))
+        self.assertEqual(from_broadcast_idx((0, 0, 0), self.shape), (0, 0))
+        self.assertEqual(from_broadcast_idx((0, 0, 1), self.shape), (0, 1))
+        self.assertEqual(from_broadcast_idx((0, 1, 0), self.shape), (1, 0))
+        self.assertEqual(from_broadcast_idx((0, 1, 1), self.shape), (1, 1))
+        self.assertEqual(from_broadcast_idx((1, 0, 0), self.shape), (0, 0))
+        self.assertEqual(from_broadcast_idx((1, 0, 1), self.shape), (0, 1))
+        self.assertEqual(from_broadcast_idx((1, 1, 0), self.shape), (1, 0))
+        self.assertEqual(from_broadcast_idx((1, 1, 1), self.shape), (1, 1))
 
     def test_is_contiguous(self):
         self.assertEqual(self.tensor.is_contiguous(), False)
@@ -160,12 +159,12 @@ class TestFunctions(unittest.TestCase):
         self.assertEqual(self.tensor4.contiguous_stride(), (2, 1))
 
     def test_broadcastable(self):
-        self.assertEqual(self.tensor.broadcastable(self. tensor2), True)
+        self.assertEqual(self.tensor.broadcastable(self. tensor2), (2, 2, 2))
         self.assertEqual(self.tensor.broadcastable(self.tensor3), False)
         self.assertEqual(self.tensor.broadcastable(self.tensor4), False)
-        self.assertEqual(self.tensor2.broadcastable(self.tensor3), True)
-        self.assertEqual(self.tensor2.broadcastable(self.tensor4), True)
-        self.assertEqual(self.tensor3.broadcastable(self.tensor4), True)
+        self.assertEqual(self.tensor2.broadcastable(self.tensor3), (2, 3, 2))
+        self.assertEqual(self.tensor2.broadcastable(self.tensor4), (2, 3, 2))
+        self.assertEqual(self.tensor3.broadcastable(self.tensor4), (3, 2))
 
     def test_tensor_map(self):
         output1 = tensor_map(neg)(self.tensor)
@@ -188,6 +187,32 @@ class TestFunctions(unittest.TestCase):
         self.assertEqual(storage2.tolist(), [-3, -5, -4, -6, -3, -5, -4, -6])
         self.assertEqual(shape2, (2, 2, 2))
         self.assertEqual(stride2, (4, 2, 1))
+        self.assertEqual(offset2, 0)
+
+    def test_tensor_zip(self):
+        output1 = tensor_zip(add)(self.tensor, self.tensor2)
+        storage1 = output1.storage
+        shape1 = output1.shape
+        stride1 = output1.stride
+        offset1 = output1.offset
+
+        self.assertEqual(storage1.tolist(), [4, 7, 5, 8, 6, 9, 7, 10])
+        self.assertEqual(shape1, (2, 2, 2))
+        self.assertEqual(stride1, (4, 2, 1))
+        self.assertEqual(offset1, 0)
+
+        self.assertRaises(ValueError, tensor_zip(add), self.tensor, self.tensor3)
+        self.assertRaises(ValueError, tensor_zip(add), self.tensor, self.tensor4)
+
+        output2 = tensor_zip(add)(self.tensor3, self.tensor4)
+        storage2 = output2.storage
+        shape2 = output2.shape
+        stride2 = output2.stride
+        offset2 = output2.offset
+
+        self.assertEqual(storage2.tolist(), [2, 6, 5, 9, 8, 12])
+        self.assertEqual(shape2, (3, 2))
+        self.assertEqual(stride2, (2, 1))
         self.assertEqual(offset2, 0)
 
 

@@ -42,7 +42,7 @@ def to_tensor_idx(storage_idx: int, shape: tuple):
     return tuple(tensor_idx)
 
 
-def from_broadcast_idx(broadcast_idx: tuple, broadcast_shape: tuple, shape: tuple):
+def from_broadcast_idx(broadcast_idx: tuple, shape: tuple):
     """
     Given the index of an element within a broadcast tensor, this function returns its index within
     the original tensor before broadcasting, which means no new copies need to be made to address the
@@ -50,7 +50,6 @@ def from_broadcast_idx(broadcast_idx: tuple, broadcast_shape: tuple, shape: tupl
 
     Args:
         broadcast_idx: The index of the element within the broadcast tensor.
-        broadcast_shape: The shape of the broadcast tensor.
         shape: The shape of the original tensor before broadcasting.
 
     Returns:
@@ -64,3 +63,5 @@ def from_broadcast_idx(broadcast_idx: tuple, broadcast_shape: tuple, shape: tupl
         else:
             index[i] = broadcast_idx[i]
     return tuple(index)
+
+
