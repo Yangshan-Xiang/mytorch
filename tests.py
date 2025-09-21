@@ -145,6 +145,12 @@ class TestFunctions(unittest.TestCase):
         self.assertEqual(from_broadcast_idx((1, 1, 0), self.shape), (1, 0))
         self.assertEqual(from_broadcast_idx((1, 1, 1), self.shape), (1, 1))
 
+    def test_numpy(self):
+        self.assertEqual(self.tensor.numpy().tolist(), [[3, 5], [4, 6]])
+        self.assertEqual(self.tensor2.numpy().tolist(), [[[1, 2]], [[3, 4]]])
+        self.assertEqual(self.tensor3.numpy().tolist(), [[1, 4], [2, 5], [3, 6]])
+        self.assertEqual(self.tensor4.numpy().tolist(), [[1, 2], [3, 4], [5, 6]])
+
     def test_is_contiguous(self):
         self.assertEqual(self.tensor.is_contiguous(), False)
         self.assertEqual(self.tensor2.is_contiguous(), True)
@@ -214,6 +220,14 @@ class TestFunctions(unittest.TestCase):
         self.assertEqual(shape2, (3, 2))
         self.assertEqual(stride2, (2, 1))
         self.assertEqual(offset2, 0)
+
+    def test_Neg(self):
+        self.assertEqual((-self.tensor).storage.tolist(), [-3, -5, -4, -6])
+        self.assertEqual((-self.tensor2).storage.tolist(), [-1, -2, -3, -4])
+        self.assertEqual((-self.tensor3).storage.tolist(), [-1, -2, -3, -4, -5, -6])
+        self.assertEqual((-self.tensor4).storage.tolist(), [-1, -2, -3, -4, -5, -6])
+
+
 
 
 
