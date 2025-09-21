@@ -1,4 +1,4 @@
-def to_storage_idx(tensor_idx: tuple, stride: tuple, offset: int):
+def to_storage_idx(tensor_idx: tuple, stride: tuple, offset: int) -> int:
     """
     Given the indices of an element within a tensor, the function returns the index of
     the element within the storage of the tensor.
@@ -20,7 +20,7 @@ def to_storage_idx(tensor_idx: tuple, stride: tuple, offset: int):
     return storage_idx + offset
 
 
-def to_tensor_idx(storage_idx: int, shape: tuple):
+def to_tensor_idx(storage_idx: int, shape: tuple) -> tuple:
     """
     Given the indices of an element within the storage of a tensor, the function returns the index of
     the element within the tensor based on contiguous layout, regardless of the stride.
@@ -42,7 +42,7 @@ def to_tensor_idx(storage_idx: int, shape: tuple):
     return tuple(tensor_idx)
 
 
-def from_broadcast_idx(broadcast_idx: tuple, shape: tuple):
+def from_broadcast_idx(broadcast_idx: tuple, shape: tuple) -> tuple:
     """
     Given the index of an element within a broadcast tensor, this function returns its index within
     the original tensor before broadcasting, which means no new copies need to be made to address the

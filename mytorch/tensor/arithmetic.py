@@ -1,4 +1,4 @@
-from mytorch.tensor.parameter import *
+from mytorch.tensor.tensor import *
 from mytorch.tensor.operations import *
 from mytorch.tensor.utils import *
 from typing import Callable
@@ -31,7 +31,7 @@ def tensor_map(func) -> Callable:
         if not isinstance(inp, Tensor):
             raise TypeError(f"Expected Tensor, got {type(inp)} instead.")
         else:
-            inp_storage, inp_shape, inp_stride, inp_offset = inp.info()
+            inp_storage, inp_shape, inp_stride, inp_offset = inp.core()
             inp_num = math.prod(inp_shape)  # The number of elements within the storage which are actually used
 
         if out_shape is None or (isinstance(out_shape, tuple) and inp_shape == out_shape):
@@ -92,8 +92,8 @@ def tensor_zip(func) -> Callable:
         elif not isinstance(y, Tensor):
             raise TypeError(f"The 2nd argument is expected to be Tensor, got {type(y)} instead.")
         else:
-            x_storage, x_shape, x_stride, x_offset = x.info()
-            y_storage, y_shape, y_stride, y_offset = y.info()
+            x_storage, x_shape, x_stride, x_offset = x.core()
+            y_storage, y_shape, y_stride, y_offset = y.core()
 
         if x_shape == y_shape:
             num = math.prod(x_shape)
@@ -137,32 +137,44 @@ def tensor_zip(func) -> Callable:
 
 class Neg:
     @staticmethod
-    def forward(x: TensorParameter) -> TensorParameter:
-        return TensorParameter(tensor_map(neg)(x.tensor),
-                               History(Neg, (), (x,)))
+    def forward(x: Tensor) -> Tensor:
+        neg_x = tensor_map(neg)(x)
+        if x.history is not None:
+            neg_x.history = History(Neg, (), (x,))
+        else:
+            pass
+        return neg_x
 
     @staticmethod
     def backward(cache, grad: ndarray) -> tuple:
+        # We tend to use numpy array for tensors who don't need history
         return (-1 * grad,)
 
 
 class Exp:
     @staticmethod
-    def forward(x: TensorParameter) -> TensorParameter:
-        exp_x = tensor_map(exp)(x.tensor)
-        return TensorParameter(exp_x,
-                               History(Exp, exp_x, (x,)))
+    def forward(x: Tensor) -> Tensor:
+        exp_x = tensor_map(exp)(x)
+        if x.history is not None:
+            exp_x.history = History(Exp, exp_x, (x,))
+        else:
+            pass
+        return exp_x
 
     @staticmethod
     def backward(cache, grad: ndarray) -> tuple:
-        return (cache * grad,)
+        return (cache.numpy() * grad,)
 
 
 class Add:
     @staticmethod
-    def forward(x: TensorParameter, y: TensorParameter) -> TensorParameter:
-        return TensorParameter(tensor_zip(add)(x.tensor, y.tensor),
-                               History(Add, (), (x, y)))
+    def forward(x: Tensor, y: Tensor) -> Tensor:
+        add_x_y = tensor_zip(add)(x, y)
+        if x.history is not None:
+            add_x_y.history = History(Add, (), (x, y))
+        else:
+            pass
+        return add_x_y
 
     @staticmethod
     def backward(cache, grad: ndarray) -> tuple:
@@ -171,21 +183,21 @@ class Add:
 
 
 
-TensorParameter.__neg__ = Neg.forward
-TensorParameter.__add__ = Add.forward
-TensorParameter.__radd__ = False
-TensorParameter.__sub__ = False
-TensorParameter.__rsub__ = False
-TensorParameter.__mul__ = False
-TensorParameter.__rmul__ = False
-TensorParameter.__truediv__ = False
-TensorParameter.__rtruediv__ = False
-TensorParameter.__eq__ = False
-TensorParameter.__gt__ = False
-TensorParameter.__lt__ = False
-TensorParameter.log = False
-TensorParameter.sigmoid = False
-TensorParameter.exp = False
-TensorParameter.relu = False
-TensorParameter.rcp = False
+Tensor.__neg__ = Neg.forward
+Tensor.__add__ = Add.forward
+Tensor.__radd__ = False
+Tensor.__sub__ = False
+Tensor.__rsub__ = False
+Tensor.__mul__ = False
+Tensor.__rmul__ = False
+Tensor.__truediv__ = False
+Tensor.__rtruediv__ = False
+Tensor.__eq__ = False
+Tensor.__gt__ = False
+Tensor.__lt__ = False
+Tensor.log = False
+Tensor.sigmoid = False
+Tensor.exp = False
+Tensor.relu = False
+Tensor.rcp = False
 

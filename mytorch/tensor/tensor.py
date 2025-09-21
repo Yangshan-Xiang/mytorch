@@ -1,8 +1,27 @@
 from numpy import array, ndarray # We use numpy array instead of python list for our tensor storage to improve performance.
 import math
 from typing import Union
+from mytorch.tensor.utils import *
 
 
+class History:
+    """
+    In order to store all the necessary history information of a parameter which will later
+    be used in the backward pass.
+
+    Attributes:
+        generator: The function which generates the value of the parameter.
+        cache: Save computed values during the forward pass to avoid unnecessary computation in the backward pass.
+        parents (tuple): The input values for the generator.
+
+    """
+    def __init__(self, generator, cache, parents: tuple):
+        self.generator = generator
+        self.cache = cache
+        self.parents = parents
+
+    def __repr__(self):
+        return f"History(generator={self.generator}, parents={self.parents})"
 
 
 class Tensor:
@@ -16,7 +35,12 @@ class Tensor:
         offset (int): The offset of the tensor.
     """
 
-    def __init__(self, storage, shape: tuple, stride: tuple = None, offset: int = 0):
+    def __init__(self,
+                 storage,
+                 shape: tuple,
+                 stride: tuple = None,
+                 offset: int = 0,
+                 history: History = None):
         self.storage = array(storage)
 
         if not isinstance(shape, tuple):
@@ -57,26 +81,54 @@ class Tensor:
         else:
             self.offset = offset
 
-    def info(self):
+        self.history = history
+        self.gradient = None
+
+    def is_constant(self):
+        """
+        Checks if the tensor is constant, if it is, then we don't need to compute the gradient w.r.t. it.
+        Be aware that we didn't use 'requires_grad' here like what PyTorch did, so make sure that you have
+        initialized the history of the tensor with 'History()' when you want the gradient w.r.t. it to be
+        computed.
+        """
+
+        return self.history is None
+
+    def is_leaf(self):
+        """
+        Checks if the tensor is a leaf node, as we only need the gradients w.r.t. the leaf nodes.
+        """
+        return self.history is not None and self.history.parents is None
+
+    def core(self):
         return self.storage, self.shape, self.stride, self.offset
 
-    def numpy(self):
+    def numpy(self) -> ndarray:
         """
-        It returns the tensor as a numpy array.
+        Returns the tensor as a numpy array.
         """
-        return
+        storage = self.storage
+        shape = self.shape
+        stride = self.stride
+        offset = self.offset
 
-
+        num = math.prod(shape)
+        out = array([0] * num).reshape(shape)
+        for idx in range(num):
+            out_tensor_idx = to_tensor_idx(idx, shape)
+            in_storage_idx = to_storage_idx(out_tensor_idx, stride, offset)
+            out[out_tensor_idx] = storage[in_storage_idx]
+        return out
 
     def is_contiguous(self):
         """
-
+        Checks if the tensor is contiguous.
         """
         return self.stride == self.contiguous_stride()
 
     def contiguous_stride(self):
         """
-
+        Returns the contiguous stride of the tensor.
         """
         shape = self.shape
         stride = [1] * len(shape)
@@ -122,47 +174,21 @@ class Tensor:
         return tuple(broadcast_shape)
 
     def __repr__(self):
-        return f"Tensor(storage={self.storage}, shape={self.shape}, stride={self.stride}, offset={self.offset})"
+        if self.history is None:
+            return (f"Tensor("
+                    f"storage={self.storage}, "
+                    f"shape={self.shape}, "
+                    f"stride={self.stride}, "
+                    f"offset={self.offset})")
+        else:
+            return (f"Tensor("
+                    f"storage={self.storage}, "
+                    f"shape={self.shape}, "
+                    f"stride={self.stride}, "
+                    f"offset={self.offset}), "
+                    f"history={self.history}")
 
 
-class History:
-    """
-    In order to store all the necessary history information of a parameter which will later
-    be used in the backward pass.
-
-    Attributes:
-        generator: The function which generates the value of the parameter.
-        cache: Save computed values during the forward pass to avoid unnecessary computation in the backward pass.
-        parents (tuple): The input values for the generator.
-
-    """
-    def __init__(self, generator, cache, parents: tuple):
-        self.generator = generator
-        self.cache = cache
-        self.parents = parents
-
-    def __repr__(self):
-        return f"History(generator={self.generator}, parents={self.parents})"
-
-
-class TensorParameter:
-    """
-    A multi-dimensional matrix.
-
-    Attributes:
-
-    """
-
-    def __init__(self, tensor: Tensor, history: History = None):
-        self.tensor = tensor
-        self.history = history
-        self.gradient = None
-
-    def __repr__(self):
-        return f"TensorParameter(tensor={self.tensor}, history={self.history}, gradient={self.gradient})"
-
-    def is_leaf(self):
-        return
 
 
 
