@@ -223,9 +223,21 @@ class TestFunctions(unittest.TestCase):
 
     def test_Neg(self):
         self.assertEqual((-self.tensor).storage.tolist(), [-3, -5, -4, -6])
+        self.assertEqual((-self.tensor).shape, (2, 2))
+        self.assertEqual((-self.tensor).stride, (2, 1))
+
         self.assertEqual((-self.tensor2).storage.tolist(), [-1, -2, -3, -4])
+        self.assertEqual((-self.tensor2).shape, (2, 1, 2))
+        self.assertEqual((-self.tensor2).stride, (2, 2, 1))
+
         self.assertEqual((-self.tensor3).storage.tolist(), [-1, -2, -3, -4, -5, -6])
+        self.assertEqual((-self.tensor3).shape, (3, 2))
+        self.assertEqual((-self.tensor3).stride, (1, 3))
+
         self.assertEqual((-self.tensor4).storage.tolist(), [-1, -2, -3, -4, -5, -6])
+        self.assertEqual((-self.tensor4).shape, (3, 2))
+        self.assertEqual((-self.tensor4).stride, (2, 1))
+
 
 
 
