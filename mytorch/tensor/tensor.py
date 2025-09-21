@@ -1,4 +1,3 @@
-from numpy import array, ndarray # We use numpy array instead of python list for our tensor storage to improve performance.
 import math
 from typing import Union
 from mytorch.tensor.utils import *
@@ -29,19 +28,20 @@ class Tensor:
     To store the four essential characteristics of a tensor.
 
     Attributes:
-        storage (ndarray): A 1-dimensional numpy array which stores the value of the tensor elements.
+        storage (ndarray): A 1-dimensional list which stores the value of the tensor elements.
         shape (tuple): The shape of the tensor.
         stride (tuple): The stride of the tensor.
         offset (int): The offset of the tensor.
     """
 
     def __init__(self,
-                 storage,
+                 storage: list,
                  shape: tuple,
                  stride: tuple = None,
                  offset: int = 0,
                  history: History = None):
-        self.storage = array(storage)
+        # We use numpy array instead of python list for our tensor storage to improve performance.
+        self.storage = list(storage)
 
         if not isinstance(shape, tuple):
             raise TypeError(f"Shape must be a tuple, got {type(shape)} instead.")
@@ -102,23 +102,6 @@ class Tensor:
 
     def core(self):
         return self.storage, self.shape, self.stride, self.offset
-
-    def numpy(self) -> ndarray:
-        """
-        Returns the tensor as a numpy array.
-        """
-        storage = self.storage
-        shape = self.shape
-        stride = self.stride
-        offset = self.offset
-
-        num = math.prod(shape)
-        out = array([0] * num).reshape(shape)
-        for idx in range(num):
-            out_tensor_idx = to_tensor_idx(idx, shape)
-            in_storage_idx = to_storage_idx(out_tensor_idx, stride, offset)
-            out[out_tensor_idx] = storage[in_storage_idx]
-        return out
 
     def is_contiguous(self):
         """
@@ -187,7 +170,6 @@ class Tensor:
                     f"stride={self.stride}, "
                     f"offset={self.offset}), "
                     f"history={self.history}")
-
     def __add__(self, other):
         pass
     def __sub__(self, other):

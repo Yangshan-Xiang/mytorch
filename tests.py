@@ -145,12 +145,6 @@ class TestFunctions(unittest.TestCase):
         self.assertEqual(from_broadcast_idx((1, 1, 0), self.shape), (1, 0))
         self.assertEqual(from_broadcast_idx((1, 1, 1), self.shape), (1, 1))
 
-    def test_numpy(self):
-        self.assertEqual(self.tensor.numpy().tolist(), [[3, 5], [4, 6]])
-        self.assertEqual(self.tensor2.numpy().tolist(), [[[1, 2]], [[3, 4]]])
-        self.assertEqual(self.tensor3.numpy().tolist(), [[1, 4], [2, 5], [3, 6]])
-        self.assertEqual(self.tensor4.numpy().tolist(), [[1, 2], [3, 4], [5, 6]])
-
     def test_is_contiguous(self):
         self.assertEqual(self.tensor.is_contiguous(), False)
         self.assertEqual(self.tensor2.is_contiguous(), True)
@@ -185,12 +179,12 @@ class TestFunctions(unittest.TestCase):
         stride2 = output2.stride
         offset2 = output2.offset
 
-        self.assertEqual(storage1.tolist(), [-3, -5, -4, -6])
+        self.assertEqual(storage1, [-3, -5, -4, -6])
         self.assertEqual(shape1, (2, 2))
         self.assertEqual(stride1, (2, 1))
         self.assertEqual(offset1, 0)
 
-        self.assertEqual(storage2.tolist(), [-3, -5, -4, -6, -3, -5, -4, -6])
+        self.assertEqual(storage2, [-3, -5, -4, -6, -3, -5, -4, -6])
         self.assertEqual(shape2, (2, 2, 2))
         self.assertEqual(stride2, (4, 2, 1))
         self.assertEqual(offset2, 0)
@@ -202,7 +196,7 @@ class TestFunctions(unittest.TestCase):
         stride1 = output1.stride
         offset1 = output1.offset
 
-        self.assertEqual(storage1.tolist(), [4, 7, 5, 8, 6, 9, 7, 10])
+        self.assertEqual(storage1, [4, 7, 5, 8, 6, 9, 7, 10])
         self.assertEqual(shape1, (2, 2, 2))
         self.assertEqual(stride1, (4, 2, 1))
         self.assertEqual(offset1, 0)
@@ -216,25 +210,25 @@ class TestFunctions(unittest.TestCase):
         stride2 = output2.stride
         offset2 = output2.offset
 
-        self.assertEqual(storage2.tolist(), [2, 6, 5, 9, 8, 12])
+        self.assertEqual(storage2, [2, 6, 5, 9, 8, 12])
         self.assertEqual(shape2, (3, 2))
         self.assertEqual(stride2, (2, 1))
         self.assertEqual(offset2, 0)
 
     def test_Neg(self):
-        self.assertEqual((-self.tensor).storage.tolist(), [-3, -5, -4, -6])
+        self.assertEqual((-self.tensor).storage, [-3, -5, -4, -6])
         self.assertEqual((-self.tensor).shape, (2, 2))
         self.assertEqual((-self.tensor).stride, (2, 1))
 
-        self.assertEqual((-self.tensor2).storage.tolist(), [-1, -2, -3, -4])
+        self.assertEqual((-self.tensor2).storage, [-1, -2, -3, -4])
         self.assertEqual((-self.tensor2).shape, (2, 1, 2))
         self.assertEqual((-self.tensor2).stride, (2, 2, 1))
 
-        self.assertEqual((-self.tensor3).storage.tolist(), [-1, -2, -3, -4, -5, -6])
+        self.assertEqual((-self.tensor3).storage, [-1, -4, -2, -5, -3, -6])
         self.assertEqual((-self.tensor3).shape, (3, 2))
-        self.assertEqual((-self.tensor3).stride, (1, 3))
+        self.assertEqual((-self.tensor3).stride, (2, 1))
 
-        self.assertEqual((-self.tensor4).storage.tolist(), [-1, -2, -3, -4, -5, -6])
+        self.assertEqual((-self.tensor4).storage, [-1, -2, -3, -4, -5, -6])
         self.assertEqual((-self.tensor4).shape, (3, 2))
         self.assertEqual((-self.tensor4).stride, (2, 1))
 

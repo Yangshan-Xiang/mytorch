@@ -1,6 +1,4 @@
-from numpy import exp as _exp
-from numpy import log as _log
-from numpy import maximum as _max
+import math
 
 
 eps = 1e-12 # For numerical stability
@@ -15,20 +13,20 @@ def mul(x: float, y: float):
     return x * y
 
 def div(x: float, y: float):
-    return x / y
+    return x / (y + eps)
 
 def neg(x: float) -> float:
     return -x
 
 def exp(x: float) -> float:
-    return _exp(x)
+    return math.exp(x)
 
 def log(x: float) -> float:
-    return _log(x + eps)
+    return math.log(x + eps)
 
 def relu(x: float) -> float:
-    return _max(0.0, x)
+    return max(0.0, x)
 
 def rcp(x: float) -> float:
-    return 1 / x
+    return 1 / (x + eps)
 

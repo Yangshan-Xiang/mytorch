@@ -5,11 +5,11 @@ from typing import Callable
 
 def tensor_map(func) -> Callable:
     """
-    A higher-order function which turns a float-to-float (or vector to vector) function into
+    A higher-order function which turns a float-to-float function into
     a tensor-to-tensor function.
 
     Args:
-        func: A float-to-float (or vector-to-vector) function.
+        func: A float-to-float function.
 
     Returns:
         A tensor-to-tensor function.
@@ -32,45 +32,33 @@ def tensor_map(func) -> Callable:
             raise TypeError(f"Expected Tensor, got {type(inp)} instead.")
         else:
             inp_storage, inp_shape, inp_stride, inp_offset = inp.core()
-            inp_num = math.prod(inp_shape)  # The number of elements within the storage which are actually used
+            inp_num = math.prod(inp_shape)
 
-        if out_shape is None or (isinstance(out_shape, tuple) and inp_shape == out_shape):
-            if len(inp_storage) == inp_num:
-                # This indicates every element inside the storage is used, then we can just apply the function
-                # on the whole storage numpy array, utilize the SIMD (single instruction, multiple data) to
-                # speed up the computation
-                out_storage = func(inp_storage)
-                out = Tensor(out_storage, inp_shape, inp_stride)  # In this case, offset has to be zero
-            else:
-                # When some elements inside the storage are not used, we want to remove them as we don't want to feed
-                # them into the function as well
-                out_storage = array([None] * inp_num)
-
-                for out_storage_idx in range(inp_num):
-                    out_tensor_idx = to_tensor_idx(out_storage_idx, inp_shape)  # Ensure contiguous layout
-                    inp_storage_idx = to_storage_idx(out_tensor_idx, inp_stride, inp_offset)
-                    out_storage[out_storage_idx] = func(inp_storage[inp_storage_idx])  # No SIMD
-                out = Tensor(out_storage, inp_shape)
+        if out_shape is None or (isinstance(out_shape, tuple) and inp_shape == out_shape): # Without broadcasting
+            out_storage = [None] * inp_num
+            for out_storage_idx in range(inp_num):
+                out_tensor_idx = to_tensor_idx(out_storage_idx, inp_shape) # Ensures contiguous layout for output
+                inp_storage_idx = to_storage_idx(out_tensor_idx, inp_stride, inp_offset)
+                out_storage[out_storage_idx] = func(inp_storage[inp_storage_idx])
+            out = Tensor(out_storage, inp_shape)
 
         elif not isinstance(out_shape, tuple):
             raise TypeError(f"Expected tuple, got {type(out_shape)} instead.")
         elif len(inp_shape) > len(out_shape):
             raise ValueError("Invalid shapes for broadcasting.")
-        else:
+        else: # With broadcasting
             for i in range(-1, -len(inp_shape) - 1, -1):
                 if inp_shape[i] != 1 and inp_shape[i] != out_shape[i]:
                     raise ValueError("Invalid shapes for broadcasting.")
                 else:
                     pass
-
             out_num = math.prod(out_shape)
-            out_storage = array([None] * out_num)  # Given output storage might contain unused elements
-
+            out_storage = [None] * out_num
             for out_storage_idx in range(out_num):
-                out_tensor_idx = to_tensor_idx(out_storage_idx, out_shape)  # This ensures contiguous layout for output
+                out_tensor_idx = to_tensor_idx(out_storage_idx, out_shape)  # Ensures contiguous layout for output
                 inp_tensor_idx = from_broadcast_idx(out_tensor_idx, inp_shape)  # Broadcasting?????????
                 inp_storage_idx = to_storage_idx(inp_tensor_idx, inp_stride, inp_offset)
-                out_storage[out_storage_idx] = func(inp_storage[inp_storage_idx])  # No SIMD
+                out_storage[out_storage_idx] = func(inp_storage[inp_storage_idx])
             out = Tensor(out_storage, out_shape)  # So we use the default contiguous stride for output
 
         return out
@@ -81,7 +69,7 @@ def tensor_zip(func) -> Callable:
     """
 
     """
-    def _zip(x: Tensor, y: Tensor) -> Tensor: # First we consider both inputs are Tensor with no extra broadcasting
+    def _zip(x: Tensor, y: Tensor) -> Tensor: # We now only consider both inputs are Tensor without extra broadcasting
         """
 
         """
@@ -93,28 +81,24 @@ def tensor_zip(func) -> Callable:
             x_storage, x_shape, x_stride, x_offset = x.core()
             y_storage, y_shape, y_stride, y_offset = y.core()
 
-        if x_shape == y_shape:
+        if x_shape == y_shape: # Without broadcasting
             num = math.prod(x_shape)
-            if len(x_storage) == num == len(y_storage) and x_stride == y_stride:
-                out_storage = func(x_storage, y_storage) # SIMD
-                out = Tensor(out_storage, x_shape, x_stride)
-            else:
-                out_storage = array([None] * num)
-                for out_storage_idx in range(num):
-                    out_tensor_idx = to_tensor_idx(out_storage_idx, x_shape)
+            out_storage = [None] * num
+            for out_storage_idx in range(num):
+                out_tensor_idx = to_tensor_idx(out_storage_idx, x_shape)
 
-                    x_storage_idx = to_storage_idx(out_tensor_idx, x_stride, x_offset)
-                    y_storage_idx = to_storage_idx(out_tensor_idx, y_stride, y_offset)
+                x_storage_idx = to_storage_idx(out_tensor_idx, x_stride, x_offset)
+                y_storage_idx = to_storage_idx(out_tensor_idx, y_stride, y_offset)
 
-                    out_storage[out_storage_idx] = func(x_storage[x_storage_idx], y_storage[y_storage_idx])  # No SIMD
-                out = Tensor(out_storage, x_shape)
-        else:
+                out_storage[out_storage_idx] = func(x_storage[x_storage_idx], y_storage[y_storage_idx])  # No SIMD
+            out = Tensor(out_storage, x_shape)
+        else: # With broadcasting
             if x.broadcastable(y) is False:
                 raise ValueError(f"Tensors with shapes {x_shape} and {y_shape} are not broadcastable.")
             else:
                 out_shape = x.broadcastable(y)
                 out_num = math.prod(out_shape)
-                out_storage = array([None] * out_num)
+                out_storage = [None] * out_num
 
             for out_storage_idx in range(out_num):
                 out_tensor_idx = to_tensor_idx(out_storage_idx, out_shape)
@@ -137,7 +121,7 @@ def tensor_contract(func) -> Callable:
     """
 
     """
-    def _contract(x: Tensor, dim: int) -> Tensor:
+    def _contract(x: Tensor, dim: int) -> Tensor: # Without extra broadcasting
         """
 
         """
@@ -149,7 +133,7 @@ def tensor_contract(func) -> Callable:
         out_shape[dim] = 1
         out_shape = tuple(out_shape)
         num = math.prod(out_shape)
-        out_storage = array([None] * num)
+        out_storage = [None] * num
         for out_storage_idx in range(num):
             out_tensor_idx = to_tensor_idx(out_storage_idx, out_shape)
             for i in range(x_shape[dim]):
@@ -176,7 +160,7 @@ class Neg:
         return neg_x
 
     @staticmethod
-    def backward(cache, grad: ndarray) -> tuple:
+    def backward(cache, grad) -> tuple:
         # We tend to use numpy array for tensors who don't need history
         return (-grad,)
 
@@ -192,9 +176,9 @@ class Exp:
         return exp_x
 
     @staticmethod
-    def backward(cache, grad: ndarray) -> tuple:
+    def backward(cache, grad) -> tuple:
         exp_x = cache
-        return (exp_x.numpy() * grad,)
+        return (exp_x * grad,)
 
 
 class Add:
@@ -208,7 +192,7 @@ class Add:
         return add_x_y
 
     @staticmethod
-    def backward(cache, grad: ndarray) -> tuple:
+    def backward(cache, grad) -> tuple:
         return grad, grad
 
 
@@ -223,7 +207,7 @@ class Sub:
         return sub_x_y
 
     @staticmethod
-    def backward(cache, grad: ndarray) -> tuple:
+    def backward(cache, grad) -> tuple:
         return grad, -grad
 
 
@@ -238,9 +222,9 @@ class Mul:
         return mul_x_y
 
     @staticmethod
-    def backward(cache, grad: ndarray) -> tuple:
+    def backward(cache, grad) -> tuple:
         x, y = cache
-        return y.numpy() * grad, x.numpy() * grad
+        return y * grad, x * grad
 
 
 class Div:
@@ -255,9 +239,9 @@ class Div:
         return div_x_y
 
     @staticmethod
-    def backward(cache, grad: ndarray) -> tuple:
+    def backward(cache, grad) -> tuple:
         x, y = cache
-        return grad / y.numpy(), -grad * x.numpy() / y.numpy() ** 2
+        return grad / y, -grad * x / y ** 2
 
 
 class Rcp:
@@ -271,9 +255,9 @@ class Rcp:
         return rcp_x
 
     @staticmethod
-    def backward(cache, grad: ndarray) -> tuple:
+    def backward(cache, grad) -> tuple:
         rcp_x = cache
-        return (-grad * rcp_x.numpy() ** 2,)
+        return (-grad * rcp_x ** 2,)
 
 
 class Log:
@@ -288,9 +272,9 @@ class Log:
         return log_x
 
     @staticmethod
-    def backward(cache, grad: ndarray) -> tuple:
+    def backward(cache, grad) -> tuple:
         x = cache
-        return (grad / x.numpy(),)
+        return (grad / x,)
 
 
 class Relu:
@@ -304,9 +288,9 @@ class Relu:
         return relu_x
 
     @staticmethod
-    def backward(cache, grad: ndarray) -> tuple:
+    def backward(cache, grad) -> tuple:
         x = cache
-        return (grad * (x.numpy() > 0),)
+        return (grad * (x > 0),)
 
 class Softmax:
     @staticmethod
@@ -321,9 +305,9 @@ class Softmax:
         return softmax_x
 
     @staticmethod
-    def backward(cache, grad: ndarray) -> tuple:
+    def backward(cache, grad) -> tuple:
         softmax_x = cache
-        return (softmax_x.numpy() * (1 - softmax_x.numpy()) * grad,)
+        return (softmax_x * (1 - softmax_x) * grad,)
 
 
 Tensor.__neg__ = Neg.forward
