@@ -30,3 +30,14 @@ def relu(x: float) -> float:
 def rcp(x: float) -> float:
     return 1 / (x + eps)
 
+def eq(x: float, y: float) -> bool:
+    return x == y
+
+def gt(x: float, y: float) -> bool:
+    return x > y
+
+def lt(x: float, y: float) -> bool:
+    return x < y
+
+
+

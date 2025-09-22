@@ -36,16 +36,21 @@ class Tensor:
 
     def __init__(self,
                  storage: list,
-                 shape: tuple,
+                 shape: tuple = None,
                  stride: tuple = None,
                  offset: int = 0,
                  history: History = None):
         # We use numpy array instead of python list for our tensor storage to improve performance.
-        self.storage = list(storage)
+        if not isinstance(storage, list):
+            raise TypeError("storage must be a list.")
+        else:
+            self.storage = storage
 
-        if not isinstance(shape, tuple):
+        if shape is None:
+            self.shape = (1,)
+        elif not isinstance(shape, tuple):
             raise TypeError(f"Shape must be a tuple, got {type(shape)} instead.")
-        elif len(storage) < math.prod(shape):
+        elif len(self.storage) < math.prod(shape):
             # As we can just use a part of the storage, offset is needed
             raise ValueError("Tensor of given shape requires more elements than its storage has.")
         elif not all(isinstance(s, int) for s in shape):
@@ -60,7 +65,7 @@ class Tensor:
             self.stride = self.contiguous_stride()
         elif not isinstance(stride, tuple):
             raise TypeError(f"Stride must be a tuple, got {type(stride)} instead.")
-        elif len(stride) != len(shape):
+        elif len(stride) != len(self.shape):
             raise ValueError("Invalid stride for shape.")
         elif not all(isinstance(s, int) for s in stride):
             raise TypeError("Stride can only contain integers.")
@@ -76,8 +81,8 @@ class Tensor:
             raise TypeError(f"Offset must be a int, got {type(offset)} instead.")
         elif offset < 0:
             raise ValueError("Offset must be a non-negative integer.")
-        elif len(storage) < math.prod(shape) + offset:
-            raise ValueError(f"Offset can't be bigger than {len(storage) - math.prod(shape)}.")
+        elif len(self.storage) < math.prod(self.shape) + offset:
+            raise ValueError(f"Offset can't be bigger than {len(self.storage) - math.prod(self.shape)}.")
         else:
             self.offset = offset
 
@@ -159,27 +164,56 @@ class Tensor:
     def __repr__(self):
         if self.history is None:
             return (f"Tensor("
-                    f"storage={self.storage}, "
+                    f"storage={[round(element, 4) for element in self.storage]}, "
                     f"shape={self.shape}, "
                     f"stride={self.stride}, "
                     f"offset={self.offset})")
         else:
             return (f"Tensor("
-                    f"storage={self.storage}, "
+                    f"storage={[round(element, 4) for element in self.storage]}, "
                     f"shape={self.shape}, "
                     f"stride={self.stride}, "
                     f"offset={self.offset}), "
                     f"history={self.history}")
+
+    # To avoid circular import, following methods are all defined in arithmetic.py
     def __add__(self, other):
+        pass
+    def __radd__(self, other):
         pass
     def __sub__(self, other):
         pass
+    def __rsub__(self, other):
+        pass
     def __mul__(self, other):
+        pass
+    def __rmul__(self, other):
         pass
     def __truediv__(self, other):
         pass
+    def __rtruediv__(self, other):
+        pass
+    def __eq__(self, other):
+        pass
+    def __gt__(self, other):
+        pass
+    def __lt__(self, other):
+        pass
     def __neg__(self):
         pass
+    def __pow__(self):
+        pass
+    def softmax(self, dim: int):
+        pass
+    def log(self):
+        pass
+    def exp(self):
+        pass
+    def relu(self):
+        pass
+    def rcp(self):
+        pass
+
 
 
 

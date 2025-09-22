@@ -90,7 +90,7 @@ def tensor_zip(func) -> Callable:
                 x_storage_idx = to_storage_idx(out_tensor_idx, x_stride, x_offset)
                 y_storage_idx = to_storage_idx(out_tensor_idx, y_stride, y_offset)
 
-                out_storage[out_storage_idx] = func(x_storage[x_storage_idx], y_storage[y_storage_idx])  # No SIMD
+                out_storage[out_storage_idx] = func(x_storage[x_storage_idx], y_storage[y_storage_idx])
             out = Tensor(out_storage, x_shape)
         else: # With broadcasting
             if x.broadcastable(y) is False:
@@ -109,7 +109,7 @@ def tensor_zip(func) -> Callable:
                 x_storage_idx = to_storage_idx(x_tensor_idx, x_stride, x_offset)
                 y_storage_idx = to_storage_idx(y_tensor_idx, y_stride, y_offset)
 
-                out_storage[out_storage_idx] = func(x_storage[x_storage_idx], y_storage[y_storage_idx])  # No SIMD
+                out_storage[out_storage_idx] = func(x_storage[x_storage_idx], y_storage[y_storage_idx])
             out = Tensor(out_storage, out_shape)
 
         return out
@@ -160,7 +160,7 @@ class Neg:
         return neg_x
 
     @staticmethod
-    def backward(cache, grad) -> tuple:
+    def backward(cache, grad: Tensor) -> tuple:
         # We tend to use numpy array for tensors who don't need history
         return (-grad,)
 
@@ -176,7 +176,7 @@ class Exp:
         return exp_x
 
     @staticmethod
-    def backward(cache, grad) -> tuple:
+    def backward(cache, grad: Tensor) -> tuple:
         exp_x = cache
         return (exp_x * grad,)
 
@@ -192,7 +192,7 @@ class Add:
         return add_x_y
 
     @staticmethod
-    def backward(cache, grad) -> tuple:
+    def backward(cache, grad: Tensor) -> tuple:
         return grad, grad
 
 
@@ -207,7 +207,7 @@ class Sub:
         return sub_x_y
 
     @staticmethod
-    def backward(cache, grad) -> tuple:
+    def backward(cache, grad: Tensor) -> tuple:
         return grad, -grad
 
 
@@ -222,7 +222,7 @@ class Mul:
         return mul_x_y
 
     @staticmethod
-    def backward(cache, grad) -> tuple:
+    def backward(cache, grad: Tensor) -> tuple:
         x, y = cache
         return y * grad, x * grad
 
@@ -239,9 +239,9 @@ class Div:
         return div_x_y
 
     @staticmethod
-    def backward(cache, grad) -> tuple:
+    def backward(cache, grad: Tensor) -> tuple:
         x, y = cache
-        return grad / y, -grad * x / y ** 2
+        return grad / y, -grad * x / y ** Tensor([2])
 
 
 class Rcp:
@@ -255,9 +255,9 @@ class Rcp:
         return rcp_x
 
     @staticmethod
-    def backward(cache, grad) -> tuple:
+    def backward(cache, grad: Tensor) -> tuple:
         rcp_x = cache
-        return (-grad * rcp_x ** 2,)
+        return (-grad * rcp_x ** Tensor([2]),)
 
 
 class Log:
@@ -272,7 +272,7 @@ class Log:
         return log_x
 
     @staticmethod
-    def backward(cache, grad) -> tuple:
+    def backward(cache, grad: Tensor) -> tuple:
         x = cache
         return (grad / x,)
 
@@ -288,9 +288,9 @@ class Relu:
         return relu_x
 
     @staticmethod
-    def backward(cache, grad) -> tuple:
+    def backward(cache, grad: Tensor) -> tuple:
         x = cache
-        return (grad * (x > 0),)
+        return (grad * (x > Tensor([0])),)
 
 class Softmax:
     @staticmethod
@@ -305,9 +305,47 @@ class Softmax:
         return softmax_x
 
     @staticmethod
-    def backward(cache, grad) -> tuple:
+    def backward(cache, grad: Tensor) -> tuple:
         softmax_x = cache
-        return (softmax_x * (1 - softmax_x) * grad,)
+        return (softmax_x * (Tensor([1]) - softmax_x) * grad,)
+
+
+class Pow:
+    @staticmethod
+    def forward(x: Tensor, y: Tensor) -> Tensor:
+        pow_x_y = tensor_zip(pow)(x, y)
+        if x.history is not None:
+            pow_x_y.history = History(Div, (x, y), (x, y))
+        else:
+            pass
+        return pow_x_y
+
+    @staticmethod
+    def backward(cache, grad: Tensor) -> tuple:
+        x, y = cache
+        return grad * y * x ** (y - Tensor([1])), x.log() * x ** y
+
+
+def _eq(x: Tensor, y: Tensor) -> Tensor:
+    if x.shape != y.shape:
+        raise ValueError(f"Input tensors must have the same shape, got {x.shape} & {y.shape} instead.")
+    else:
+        pass
+    return tensor_zip(eq)(x, y)
+
+def _lt(x: Tensor, y: Tensor) -> Tensor:
+    if x.shape != y.shape:
+        raise ValueError(f"Input tensors must have the same shape, got {x.shape} & {y.shape} instead.")
+    else:
+        pass
+    return tensor_zip(lt)(x, y)
+
+def _gt(x: Tensor, y: Tensor) -> Tensor:
+    if x.shape != y.shape:
+        raise ValueError(f"Input tensors must have the same shape, got {x.shape} & {y.shape} instead.")
+    else:
+        pass
+    return tensor_zip(gt)(x, y)
 
 
 Tensor.__neg__ = Neg.forward
@@ -320,9 +358,10 @@ Tensor.__mul__ = Mul.forward
 Tensor.__rmul__ = Mul.forward
 Tensor.__truediv__ = Div.forward
 Tensor.__rtruediv__ = lambda x, y: Div.forward(y, x)
-Tensor.__eq__ = False
-Tensor.__gt__ = False
-Tensor.__lt__ = False
+Tensor.__eq__ = _eq
+Tensor.__gt__ = _gt
+Tensor.__lt__ = _lt
+Tensor.__pow__ = Pow.forward
 Tensor.log = Log.forward
 Tensor.softmax = Softmax.forward
 Tensor.exp = Exp.forward
