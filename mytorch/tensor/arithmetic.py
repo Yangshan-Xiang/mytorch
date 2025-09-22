@@ -153,7 +153,7 @@ class Neg:
     @staticmethod
     def forward(x: Tensor) -> Tensor:
         neg_x = tensor_map(neg)(x)
-        if x.history is not None:
+        if x.history:
             neg_x.history = History(Neg, (), (x,))
         else:
             pass
@@ -169,8 +169,8 @@ class Exp:
     @staticmethod
     def forward(x: Tensor) -> Tensor:
         exp_x = tensor_map(exp)(x)
-        if x.history is not None:
-            exp_x.history = History(Exp, exp_x, (x,))
+        if x.history:
+            exp_x.history = History(Exp, exp_x.to_constant(), (x,)) # Tensors in cache should be constant
         else:
             pass
         return exp_x
@@ -185,7 +185,7 @@ class Add:
     @staticmethod
     def forward(x: Tensor, y: Tensor) -> Tensor:
         add_x_y = tensor_zip(add)(x, y)
-        if x.history is not None:
+        if x.history or y.history:
             add_x_y.history = History(Add, (), (x, y))
         else:
             pass
@@ -200,7 +200,7 @@ class Sub:
     @staticmethod
     def forward(x: Tensor, y: Tensor) -> Tensor:
         sub_x_y = tensor_zip(sub)(x, y)
-        if x.history is not None:
+        if x.history or y.history:
             sub_x_y.history = History(Sub, (), (x, y))
         else:
             pass
@@ -215,8 +215,8 @@ class Mul:
     @staticmethod
     def forward(x: Tensor, y: Tensor) -> Tensor:
         mul_x_y = tensor_zip(mul)(x, y)
-        if x.history is not None:
-            mul_x_y.history = History(Sub, (x, y), (x, y))
+        if x.history or y.history:
+            mul_x_y.history = History(Mul, (x.to_constant(), y.to_constant()), (x, y))
         else:
             pass
         return mul_x_y
@@ -231,8 +231,8 @@ class Div:
     @staticmethod
     def forward(x: Tensor, y: Tensor) -> Tensor:
         div_x_y = tensor_zip(div)(x, y)
-        if x.history is not None:
-            cache = (x, y)
+        if x.history or y.history:
+            cache = (x.to_constant(), y.to_constant())
             div_x_y.history = History(Div, cache, (x, y))
         else:
             pass
@@ -248,8 +248,8 @@ class Rcp:
     @staticmethod
     def forward(x: Tensor) -> Tensor:
         rcp_x = tensor_map(div)(x)
-        if x.history is not None:
-            rcp_x.history = History(Rcp, rcp_x, (x,))
+        if x.history:
+            rcp_x.history = History(Rcp, rcp_x.to_constant(), (x,))
         else:
             pass
         return rcp_x
@@ -264,8 +264,8 @@ class Log:
     @staticmethod
     def forward(x: Tensor) -> Tensor:
         log_x = tensor_map(log)(x)
-        if x.history is not None:
-            cache = x
+        if x.history:
+            cache = x.to_constant()
             log_x.history = History(Log, cache, (x,))
         else:
             pass
@@ -281,8 +281,8 @@ class Relu:
     @staticmethod
     def forward(x: Tensor) -> Tensor:
         relu_x = tensor_map(relu)(x)
-        if x.history is not None:
-            relu_x.history = History(Relu, x, (x,))
+        if x.history:
+            relu_x.history = History(Relu, x.to_constant(), (x,))
         else:
             pass
         return relu_x
@@ -298,8 +298,8 @@ class Softmax:
         exp_x = tensor_map(exp)(x)
         sum_exp_x = tensor_contract(add)(exp_x, dim)
         softmax_x = exp_x / sum_exp_x
-        if x.history is not None:
-            softmax_x.history = History(Softmax, softmax_x, (x,))
+        if x.history:
+            softmax_x.history = History(Softmax, softmax_x.to_constant(), (x,))
         else:
             pass
         return softmax_x
@@ -314,8 +314,8 @@ class Pow:
     @staticmethod
     def forward(x: Tensor, y: Tensor) -> Tensor:
         pow_x_y = tensor_zip(pow)(x, y)
-        if x.history is not None:
-            pow_x_y.history = History(Div, (x, y), (x, y))
+        if x.history or y.history:
+            pow_x_y.history = History(Pow, (x.to_constant(), y.to_constant()), (x, y))
         else:
             pass
         return pow_x_y

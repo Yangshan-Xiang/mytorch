@@ -5,33 +5,37 @@ from mytorch.tensor.utils import *
 
 class History:
     """
-    In order to store all the necessary history information of a parameter which will later
-    be used in the backward pass.
+    Stores the computation history of a tensor parameter which will be used in the backward pass.
 
     Attributes:
-        generator: The function which generates the value of the parameter.
-        cache: Save computed values during the forward pass to avoid unnecessary computation in the backward pass.
-        parents (tuple): The input values for the generator.
+        function: The function which is used.
+        cache: Stores some useful values computed during forward pass to save computation.
+        parents (tuple): The input values for the function.
 
     """
-    def __init__(self, generator, cache, parents: tuple):
-        self.generator = generator
+    def __init__(self, function = None, cache = None, parents: tuple = None):
+        self.function = function
         self.cache = cache
         self.parents = parents
 
     def __repr__(self):
-        return f"History(generator={self.generator}, parents={self.parents})"
+        if self.parents is None:
+            return f"History()"
+        else:
+            return f"History(function={self.function}, parents={self.parents})"
+
 
 
 class Tensor:
     """
-    To store the four essential characteristics of a tensor.
+    Stores the four essential features of a tensor, and its history and gradient if it is a tensor parameter.
 
     Attributes:
-        storage (ndarray): A 1-dimensional list which stores the value of the tensor elements.
+        storage (list): A 1-dimensional list which stores the value of the elements of the tensor.
         shape (tuple): The shape of the tensor.
         stride (tuple): The stride of the tensor.
         offset (int): The offset of the tensor.
+        history (History): Stores the computation history of the tensor parameter.
     """
 
     def __init__(self,
@@ -40,14 +44,14 @@ class Tensor:
                  stride: tuple = None,
                  offset: int = 0,
                  history: History = None):
-        # We use numpy array instead of python list for our tensor storage to improve performance.
+
         if not isinstance(storage, list):
-            raise TypeError("storage must be a list.")
+            raise TypeError("Storage must be a list.")
         else:
             self.storage = storage
 
         if shape is None:
-            self.shape = (1,)
+            self.shape = (len(storage),) # Default shape is a 1-d vector
         elif not isinstance(shape, tuple):
             raise TypeError(f"Shape must be a tuple, got {type(shape)} instead.")
         elif len(self.storage) < math.prod(shape):
@@ -61,7 +65,7 @@ class Tensor:
             self.shape = shape
 
         if stride is None:
-            # If stride is not given, we will use the contiguous stride
+            # If stride is not given, we will use the corresponding contiguous stride
             self.stride = self.contiguous_stride()
         elif not isinstance(stride, tuple):
             raise TypeError(f"Stride must be a tuple, got {type(stride)} instead.")
@@ -99,10 +103,18 @@ class Tensor:
 
         return self.history is None
 
+    def to_constant(self):
+        """
+        Changes a tensor parameter into a constant tensor by simply removing its history.
+        """
+        return Tensor(self.storage, self.shape, self.stride, self.offset)
+
     def is_leaf(self):
         """
-        Checks if the tensor is a leaf node, as we only need the gradients w.r.t. the leaf nodes.
+        Checks if the tensor parameter is a leaf parameter, as we only need to store the gradients
+        w.r.t. leaf parameters.
         """
+
         return self.history is not None and self.history.parents is None
 
     def core(self):
@@ -110,7 +122,7 @@ class Tensor:
 
     def is_contiguous(self):
         """
-        Checks if the tensor is contiguous.
+        Checks if the tensor's stride is contiguous.
         """
         return self.stride == self.contiguous_stride()
 
@@ -130,7 +142,7 @@ class Tensor:
         if they aren't, returns False, if they are, returns the shape of the broadcast tensor.
 
         Args:
-            self (Tensor): A Tensor object.
+            self (Tensor): The tensor itself.
             other (Tensor): The other tensor.
 
         Returns:
@@ -158,8 +170,78 @@ class Tensor:
                     broadcast_shape[i] = other_shape[i]
             else:
                 broadcast_shape[i] = self_shape[i]
-
         return tuple(broadcast_shape)
+
+    def reshape(self, *shape):
+        pass
+    def __getitem__(self):
+        pass
+    def __setitem__(self):
+        pass
+
+    def topological_sort(self) -> list:
+        """
+        Find the topological ordering of tensor parameters. Here we apply depth-first search
+        with reverse post-ordering to linearly order the parameters. The result might
+        not be unique, it ensures that a parent parameter will only be visited
+        after all of its children have been visited to avoid redundant computations.
+        """
+
+        visited = [] # Avoid revisit
+        ordered = []
+
+        def dfs(x):
+            if x.history: # We don't need constant tensors here
+                if id(x) not in visited: # Use id() to identify different parameters
+                    visited.append(id(x))
+
+                    if x.history.parents:
+                        for parent in x.history.parents:
+                            dfs(parent) # Recursion
+                        ordered.append(x)
+                    else:
+                        ordered.append(x)
+                else:
+                    pass
+            else:
+                pass
+
+        dfs(self)
+        ordered.reverse() # Reverse post-ordering
+        return ordered
+
+    def chain_rule(self, grad: 'Tensor') -> list:
+        """
+        Applies chain rule to compute and assign the derivatives of the child with respect to its parents.
+        """
+
+        h = self.history
+        return list(zip(h.parents, h.function.backward(h.cache, grad))) # Pair the gradients with its parents
+
+    def backward(self) -> None:
+        """
+        Applies the chain rule to compute and save the gradients w.r.t. the leaf tensor parameters.
+        The saved gradients will then be used by optimizers to update themselves.
+        """
+
+        ordered = self.topological_sort() # No constant tensors already
+        catalog = {id(x): Tensor([0]) for x in ordered} # To record computed gradients
+        catalog[id(self)] = Tensor([1]) # Initialize the starting gradient as Tensor([1])
+
+        for param in ordered:
+            if param.history.parents: # Not a leaf parameter
+                for parent, grad in param.chain_rule(catalog[id(param)]):
+                    if parent.history:
+                        catalog[id(parent)] += grad # Accumulate the gradients according to the chain rule
+                    else:
+                        pass
+            else: # A leaf parameter
+                if not param.gradient:
+                    param.gradient = Tensor([0])
+                else:
+                    pass
+                param.gradient += catalog[id(param)] # Enable it to accumulate derivatives,
+                # useful in certain cases like multitask learning.
 
     def __repr__(self):
         if self.history is None:
@@ -173,8 +255,9 @@ class Tensor:
                     f"storage={[round(element, 4) for element in self.storage]}, "
                     f"shape={self.shape}, "
                     f"stride={self.stride}, "
-                    f"offset={self.offset}), "
-                    f"history={self.history}")
+                    f"offset={self.offset}, "
+                    f"history={self.history})")
+
 
     # To avoid circular import, following methods are all defined in arithmetic.py
     def __add__(self, other):
