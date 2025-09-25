@@ -5,7 +5,7 @@ from mytorch.tensor.utils import *
 
 class History:
     """
-    Stores the computation history of a tensor parameter which will be used in the backward pass.
+    Store the computation history of a tensor parameter which will be used in the backward pass.
 
     Attributes:
         function: The function which is used.
@@ -24,11 +24,9 @@ class History:
         else:
             return f"History(function={self.function}, parents={self.parents})"
 
-
-
 class Tensor:
     """
-    Stores the four essential features of a tensor, and its history and gradient if it is a tensor parameter.
+    Store the four core features of a tensor, and its history and gradient if it is a tensor parameter.
 
     Attributes:
         storage (list): A 1-dimensional list which stores the value of the elements of the tensor.
@@ -46,14 +44,14 @@ class Tensor:
                  history: History = None):
 
         if not isinstance(storage, list):
-            raise TypeError("Storage must be a list.")
+            raise TypeError(f"Storage must be a list, got {type(storage).__name__} instead.")
         else:
             self.storage = storage
 
         if shape is None:
             self.shape = (len(storage),) # Default shape is a 1-d vector
         elif not isinstance(shape, tuple):
-            raise TypeError(f"Shape must be a tuple, got {type(shape)} instead.")
+            raise TypeError(f"Shape must be a tuple, got {type(shape).__name__} instead.")
         elif len(self.storage) < math.prod(shape):
             # As we can just use a part of the storage, offset is needed
             raise ValueError("Tensor of given shape requires more elements than its storage has.")
@@ -68,7 +66,7 @@ class Tensor:
             # If stride is not given, we will use the corresponding contiguous stride
             self.stride = self.contiguous_stride()
         elif not isinstance(stride, tuple):
-            raise TypeError(f"Stride must be a tuple, got {type(stride)} instead.")
+            raise TypeError(f"Stride must be a tuple, got {type(stride).__name__} instead.")
         elif len(stride) != len(self.shape):
             raise ValueError("Invalid stride for shape.")
         elif not all(isinstance(s, int) for s in stride):
@@ -82,20 +80,24 @@ class Tensor:
             self.stride = stride
 
         if not isinstance(offset, int):
-            raise TypeError(f"Offset must be a int, got {type(offset)} instead.")
+            raise TypeError(f"Offset must be a int, got {type(offset).__name__} instead.")
         elif offset < 0:
             raise ValueError("Offset must be a non-negative integer.")
         elif len(self.storage) < math.prod(self.shape) + offset:
-            raise ValueError(f"Offset can't be bigger than {len(self.storage) - math.prod(self.shape)}.")
+            raise ValueError(f"Given storage and shape, offset can't be bigger "
+                             f"than {len(self.storage) - math.prod(self.shape)}.")
         else:
             self.offset = offset
 
         self.history = history
         self.gradient = None
 
+    def core(self):
+        return self.storage, self.shape, self.stride, self.offset
+
     def is_constant(self):
         """
-        Checks if the tensor is constant, if it is, then we don't need to compute the gradient w.r.t. it.
+        Check if the tensor is constant, if it is, then we don't need to compute the gradient w.r.t. it.
         Be aware that we didn't use 'requires_grad' here like what PyTorch did, so make sure that you have
         initialized the history of the tensor with 'History()' when you want the gradient w.r.t. it to be
         computed.
@@ -103,32 +105,66 @@ class Tensor:
 
         return self.history is None
 
-    def to_constant(self):
+    def is_parameter(self):
+        return self.history is not None
+
+    def to_contiguous(self) -> None:
         """
-        Changes a tensor parameter into a constant tensor by simply removing its history.
+        Convert the tensor to a contiguous layout, be aware that it will also remove unused
+        elements within the storage.
         """
+
+        if self.is_contiguous():
+            raise AssertionError("Tensor is already contiguous.")
+        else:
+            self_storage, self_shape, self_stride, self_offset = self.core()
+            num = math.prod(self_shape)
+            out_storage = [None] * num
+            for out_storage_idx in range(num):
+                out_tensor_idx = to_tensor_idx(out_storage_idx, self_shape)
+                self_storage_idx = to_storage_idx(out_tensor_idx, self_stride, self_offset)
+                out_storage[out_storage_idx] = self_storage[self_storage_idx]
+            self.storage = out_storage
+            self.stride = self.contiguous_stride()
+            self.offset = 0
+
+    def constant(self):
+        """
+        Return a constant copy of a tensor parameter by simply removing its history.
+        """
+
         return Tensor(self.storage, self.shape, self.stride, self.offset)
+
+    def update(self, other: 'Tensor'):
+        """
+        Update the four core features of a tensor parameter given another tensor.
+        """
+
+        if not isinstance(other, Tensor):
+            raise TypeError(f"Expected Tensor, got {type(other).__name__} instead.")
+        else:
+            self.storage = other.storage
+            self.shape = other.shape
+            self.stride = other.stride
+            self.offset = other.offset
 
     def is_leaf(self):
         """
-        Checks if the tensor parameter is a leaf parameter, as we only need to store the gradients
+        Check if the tensor parameter is a leaf parameter, as we only need to store the gradients
         w.r.t. leaf parameters.
         """
 
         return self.history is not None and self.history.parents is None
 
-    def core(self):
-        return self.storage, self.shape, self.stride, self.offset
-
     def is_contiguous(self):
         """
-        Checks if the tensor's stride is contiguous.
+        Check if the tensor's stride is contiguous.
         """
         return self.stride == self.contiguous_stride()
 
     def contiguous_stride(self):
         """
-        Returns the contiguous stride of the tensor.
+        Return the contiguous stride of the tensor.
         """
         shape = self.shape
         stride = [1] * len(shape)
@@ -139,7 +175,7 @@ class Tensor:
     def broadcastable(self, other: 'Tensor') -> Union[bool, tuple]:
         """
         According to the broadcasting rules, we check whether the two tensors are broadcastable,
-        if they aren't, returns False, if they are, returns the shape of the broadcast tensor.
+        if they aren't, return False, if they are, return the shape of the broadcast tensor.
 
         Args:
             self (Tensor): The tensor itself.
@@ -150,7 +186,7 @@ class Tensor:
         """
 
         if not isinstance(other, Tensor):
-            raise TypeError(f"Expected Tensor, got {type(other)} instead.")
+            raise TypeError(f"Expected Tensor, got {type(other).__name__} instead.")
         else:
             self_shape = self.shape
             other_shape = other.shape
@@ -172,8 +208,6 @@ class Tensor:
                 broadcast_shape[i] = self_shape[i]
         return tuple(broadcast_shape)
 
-    def reshape(self, *shape):
-        pass
     def __getitem__(self):
         pass
     def __setitem__(self):
@@ -212,7 +246,7 @@ class Tensor:
 
     def chain_rule(self, grad: 'Tensor') -> list:
         """
-        Applies chain rule to compute and assign the derivatives of the child with respect to its parents.
+        Apply the chain rule to compute and assign the derivatives of the child with respect to its parents.
         """
 
         h = self.history
@@ -220,13 +254,14 @@ class Tensor:
 
     def backward(self) -> None:
         """
-        Applies the chain rule to compute and save the gradients w.r.t. the leaf tensor parameters.
+        Apply the chain rule to compute and save the gradients w.r.t. the leaf tensor parameters.
         The saved gradients will then be used by optimizers to update themselves.
         """
 
         ordered = self.topological_sort() # No constant tensors already
-        catalog = {id(x): Tensor([0]) for x in ordered} # To record computed gradients
-        catalog[id(self)] = Tensor([1]) # Initialize the starting gradient as Tensor([1])
+        catalog = {id(x): Tensor([0]) for x in ordered} # Record computed gradients
+        # Initialize the starting gradient as an all-ones tensor
+        catalog[id(self)] = Tensor([1] * math.prod(self.shape), self.shape)
 
         for param in ordered:
             if param.history.parents: # Not a leaf parameter
@@ -244,19 +279,21 @@ class Tensor:
                 # useful in certain cases like multitask learning.
 
     def __repr__(self):
+        """
+        Show the tensor as a nested list.
+        """
+        out = layout(self.shape)
+        self_storage, self_shape, self_stride, self_offset = self.core()
+        num = math.prod(self.shape)
+        for out_storage_idx in range(num):
+            out_tensor_idx = to_tensor_idx(out_storage_idx, self_shape)
+            self_storage_idx = to_storage_idx(out_tensor_idx, self_stride, self_offset)
+            assign(out, out_tensor_idx, round(self_storage[self_storage_idx], 4))
+
         if self.history is None:
-            return (f"Tensor("
-                    f"storage={[round(element, 4) for element in self.storage]}, "
-                    f"shape={self.shape}, "
-                    f"stride={self.stride}, "
-                    f"offset={self.offset})")
+            return f"Tensor({out})"
         else:
-            return (f"Tensor("
-                    f"storage={[round(element, 4) for element in self.storage]}, "
-                    f"shape={self.shape}, "
-                    f"stride={self.stride}, "
-                    f"offset={self.offset}, "
-                    f"history={self.history})")
+            return f"Tensor({out}, history={self.history})"
 
 
     # To avoid circular import, following methods are all defined in arithmetic.py
@@ -286,6 +323,8 @@ class Tensor:
         pass
     def __pow__(self):
         pass
+    def __matmul__(self, other):
+        pass
     def softmax(self, dim: int):
         pass
     def log(self):
@@ -295,6 +334,10 @@ class Tensor:
     def relu(self):
         pass
     def rcp(self):
+        pass
+    def reshape(self, *shape):
+        pass
+    def permute(self, *dims):
         pass
 
 

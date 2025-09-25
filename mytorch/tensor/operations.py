@@ -27,6 +27,9 @@ def log(x: float) -> float:
 def relu(x: float) -> float:
     return max(0.0, x)
 
+def sigmoid(x: float) -> float:
+    return 1 / (1 + math.exp(-x))
+
 def rcp(x: float) -> float:
     return 1 / (x + eps)
 

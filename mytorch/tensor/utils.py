@@ -1,3 +1,6 @@
+import math
+
+
 def to_storage_idx(tensor_idx: tuple, stride: tuple, offset: int) -> int:
     """
     Given the indices of an element within a tensor, the function returns the index of
@@ -33,6 +36,9 @@ def to_tensor_idx(storage_idx: int, shape: tuple) -> tuple:
         tuple: The index of the element within the tensor based on contiguous layout.
 
     """
+    if storage_idx + 1 > math.prod(shape):
+        raise ValueError("Index out of bounds.")
+
     tensor_idx = [0] * len(shape)
 
     for i in range(len(shape) - 1, -1, -1):
@@ -65,3 +71,22 @@ def from_broadcast_idx(broadcast_idx: tuple, shape: tuple) -> tuple:
     return tuple(index)
 
 
+def layout(shape):
+    """
+    Create a nested list of zeros with the given shape.
+    """
+    if len(shape) == 0:
+        return None
+    else:
+        pass
+    return [layout(shape[1:]) for _ in range(shape[0])]
+
+
+def assign(lst: list, pos: tuple, value: float):
+    """
+    Assign a new value to a nested list given a tuple.
+    """
+    target = lst
+    for i in pos[:-1]:
+        target = target[i]
+    target[pos[-1]] = value

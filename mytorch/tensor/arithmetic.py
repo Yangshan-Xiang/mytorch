@@ -1,3 +1,5 @@
+import itertools
+
 from mytorch.tensor.tensor import *
 from mytorch.tensor.operations import *
 from mytorch.tensor.utils import *
@@ -117,11 +119,11 @@ def tensor_zip(func) -> Callable:
     return _zip
 
 
-def tensor_contract(func) -> Callable:
+def tensor_reduce(func) -> Callable:
     """
 
     """
-    def _contract(x: Tensor, dim: int) -> Tensor: # Without extra broadcasting
+    def _reduce(x: Tensor, dim: int) -> Tensor: # Without extra broadcasting
         """
 
         """
@@ -146,7 +148,7 @@ def tensor_contract(func) -> Callable:
                 else:
                     out_storage[out_storage_idx] = func(out_storage[out_storage_idx], x_storage[x_storage_idx])
         return Tensor(out_storage, out_shape)
-    return _contract
+    return _reduce
 
 
 class Neg:
@@ -170,7 +172,7 @@ class Exp:
     def forward(x: Tensor) -> Tensor:
         exp_x = tensor_map(exp)(x)
         if x.history:
-            exp_x.history = History(Exp, exp_x.to_constant(), (x,)) # Tensors in cache should be constant
+            exp_x.history = History(Exp, exp_x.constant(), (x,)) # Tensors in cache should be constant
         else:
             pass
         return exp_x
@@ -216,7 +218,7 @@ class Mul:
     def forward(x: Tensor, y: Tensor) -> Tensor:
         mul_x_y = tensor_zip(mul)(x, y)
         if x.history or y.history:
-            mul_x_y.history = History(Mul, (x.to_constant(), y.to_constant()), (x, y))
+            mul_x_y.history = History(Mul, (x.constant(), y.constant()), (x, y))
         else:
             pass
         return mul_x_y
@@ -232,7 +234,7 @@ class Div:
     def forward(x: Tensor, y: Tensor) -> Tensor:
         div_x_y = tensor_zip(div)(x, y)
         if x.history or y.history:
-            cache = (x.to_constant(), y.to_constant())
+            cache = (x.constant(), y.constant())
             div_x_y.history = History(Div, cache, (x, y))
         else:
             pass
@@ -249,7 +251,7 @@ class Rcp:
     def forward(x: Tensor) -> Tensor:
         rcp_x = tensor_map(div)(x)
         if x.history:
-            rcp_x.history = History(Rcp, rcp_x.to_constant(), (x,))
+            rcp_x.history = History(Rcp, rcp_x.constant(), (x,))
         else:
             pass
         return rcp_x
@@ -265,7 +267,7 @@ class Log:
     def forward(x: Tensor) -> Tensor:
         log_x = tensor_map(log)(x)
         if x.history:
-            cache = x.to_constant()
+            cache = x.constant()
             log_x.history = History(Log, cache, (x,))
         else:
             pass
@@ -282,7 +284,7 @@ class Relu:
     def forward(x: Tensor) -> Tensor:
         relu_x = tensor_map(relu)(x)
         if x.history:
-            relu_x.history = History(Relu, x.to_constant(), (x,))
+            relu_x.history = History(Relu, x.constant(), (x,))
         else:
             pass
         return relu_x
@@ -295,19 +297,23 @@ class Relu:
 class Softmax:
     @staticmethod
     def forward(x: Tensor, dim: int) -> Tensor:
+        x.update(x.constant() - Tensor([max(x.storage)])) # Subtract the maximum value for numerical stability
         exp_x = tensor_map(exp)(x)
-        sum_exp_x = tensor_contract(add)(exp_x, dim)
+        sum_exp_x = tensor_reduce(add)(exp_x, dim)
         softmax_x = exp_x / sum_exp_x
         if x.history:
-            softmax_x.history = History(Softmax, softmax_x.to_constant(), (x,))
+            softmax_x.history = History(Softmax, (softmax_x.constant(), dim), (x,))
         else:
             pass
         return softmax_x
 
     @staticmethod
     def backward(cache, grad: Tensor) -> tuple:
-        softmax_x = cache
-        return (softmax_x * (Tensor([1]) - softmax_x) * grad,)
+        """
+
+        """
+        pass
+
 
 
 class Pow:
@@ -315,7 +321,7 @@ class Pow:
     def forward(x: Tensor, y: Tensor) -> Tensor:
         pow_x_y = tensor_zip(pow)(x, y)
         if x.history or y.history:
-            pow_x_y.history = History(Pow, (x.to_constant(), y.to_constant()), (x, y))
+            pow_x_y.history = History(Pow, (x.constant(), y.constant()), (x, y))
         else:
             pass
         return pow_x_y
@@ -324,6 +330,57 @@ class Pow:
     def backward(cache, grad: Tensor) -> tuple:
         x, y = cache
         return grad * y * x ** (y - Tensor([1])), x.log() * x ** y
+
+class Reshape:
+    @staticmethod
+    def forward(x: Tensor, *shape) -> Tensor:
+        if not x.is_contiguous():
+            x.to_contiguous() # New storage
+        else: # Same storage
+            pass
+        x_shape = x.shape
+        if math.prod(x_shape) != math.prod(shape):
+            raise ValueError(f"Can't reshape to {shape}.")
+        else:
+            reshape_x = Tensor(x.storage,
+                               shape,
+                               None,
+                               x.offset)
+        if x.history:
+            reshape_x.history = History(Reshape, x_shape, (x,))
+        else:
+            pass
+        return reshape_x
+
+    @staticmethod
+    def backward(cache, grad: Tensor) -> tuple:
+        x_shape = cache
+        return (grad.reshape(*x_shape),)
+
+class Permute:
+    @staticmethod
+    def forward(x: Tensor, *dims) -> Tensor:
+        _, x_shape, x_stride, _ = x.core()
+        if (any(d < 0 for d in dims) or
+                len(x.shape) - 1 < max(dims) or
+                len(x.shape) != len(dims) or
+                len(dims) != len(set(dims))):
+            raise ValueError("Invalid dimensions.")
+        else: # Same storage
+            permute_x = Tensor(x.storage,
+                               tuple(x_shape[i] for i in dims),
+                               tuple(x_stride[i] for i in dims),
+                               x.offset)
+        if x.history:
+            permute_x.history = History(Permute, dims, (x,))
+        else:
+            pass
+        return permute_x
+
+    @staticmethod
+    def backward(cache, grad: Tensor) -> tuple:
+        dims = cache
+        return (grad.permute(*dims),)
 
 
 def _eq(x: Tensor, y: Tensor) -> Tensor:
@@ -348,6 +405,12 @@ def _gt(x: Tensor, y: Tensor) -> Tensor:
     return tensor_zip(gt)(x, y)
 
 
+
+
+
+
+
+
 Tensor.__neg__ = Neg.forward
 Tensor.__add__ = Add.forward
 Tensor.__radd__ = Add.forward
@@ -362,9 +425,23 @@ Tensor.__eq__ = _eq
 Tensor.__gt__ = _gt
 Tensor.__lt__ = _lt
 Tensor.__pow__ = Pow.forward
+Tensor.__rpow__ = lambda x, y: Pow.forward(y, x)
+
+Tensor.kron = NotImplemented
 Tensor.log = Log.forward
 Tensor.softmax = Softmax.forward
 Tensor.exp = Exp.forward
 Tensor.relu = Relu.forward
 Tensor.rcp = Rcp.forward
+Tensor.reshape = Reshape.forward
+Tensor.permute = Permute.forward
+
+
+
+
+
+
+
+
+
 

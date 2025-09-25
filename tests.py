@@ -157,13 +157,26 @@ class TestFunctions(unittest.TestCase):
         self.assertEqual(self.tensor3.contiguous_stride(), (2, 1))
         self.assertEqual(self.tensor4.contiguous_stride(), (2, 1))
 
+    def test_to_contiguous(self):
+        self.tensor.to_contiguous()
+        self.assertEqual(self.tensor.storage, [3, 5, 4, 6])
+        self.assertEqual(self.tensor.shape, (2, 2))
+        self.assertEqual(self.tensor.stride, (2, 1))
+        self.assertEqual(self.tensor.offset, 0)
+
     def test_broadcastable(self):
-        self.assertEqual(self.tensor.broadcastable(self. tensor2), (2, 2, 2))
+        self.assertEqual(self.tensor.broadcastable(self.tensor2), (2, 2, 2))
         self.assertEqual(self.tensor.broadcastable(self.tensor3), False)
         self.assertEqual(self.tensor.broadcastable(self.tensor4), False)
         self.assertEqual(self.tensor2.broadcastable(self.tensor3), (2, 3, 2))
         self.assertEqual(self.tensor2.broadcastable(self.tensor4), (2, 3, 2))
         self.assertEqual(self.tensor3.broadcastable(self.tensor4), (3, 2))
+
+    def test_repr(self):
+        self.assertEqual(self.tensor.__repr__(), "Tensor([[3, 5], [4, 6]])")
+        self.assertEqual(self.tensor2.__repr__(), "Tensor([[[1, 2]], [[3, 4]]])")
+        self.assertEqual(self.tensor3.__repr__(), "Tensor([[1, 4], [2, 5], [3, 6]])")
+        self.assertEqual(self.tensor4.__repr__(), "Tensor([[1, 2], [3, 4], [5, 6]])")
 
     def test_neg(self):
         out = -self.tensor
@@ -271,6 +284,19 @@ class TestFunctions(unittest.TestCase):
         self.assertEqual(out4.shape, (3, 2))
         self.assertEqual(out4.stride, (2, 1))
         self.assertEqual(out4.offset, 0)
+
+    def test_reshape(self):
+        self.assertEqual(self.tensor.reshape(4).__repr__(), "Tensor([3, 5, 4, 6])")
+        self.assertEqual(self.tensor2.reshape(2, 2).__repr__(), "Tensor([[1, 2], [3, 4]])")
+        self.assertEqual(self.tensor3.reshape(2, 3).__repr__(), "Tensor([[1, 4, 2], [5, 3, 6]])")
+        self.assertEqual(self.tensor4.reshape(6,).__repr__(), "Tensor([1, 2, 3, 4, 5, 6])")
+
+    def test_permute(self):
+        self.assertEqual(self.tensor.permute(1, 0).__repr__(), "Tensor([[3, 4], [5, 6]])")
+        self.assertEqual(self.tensor2.permute(2, 1, 0).__repr__(), "Tensor([[[1, 3]], [[2, 4]]])")
+        self.assertEqual(self.tensor3.permute(1, 0).__repr__(), "Tensor([[1, 2, 3], [4, 5, 6]])")
+        self.assertEqual(self.tensor4.permute(1, 0).__repr__(), "Tensor([[1, 3, 5], [2, 4, 6]])")
+
 
 
 
