@@ -527,9 +527,13 @@ class MatMul:
         """
 
         """
+
         x, y = cache
+        x_shape = x.shape
+        y_shape = y.shape
         x_remove = False
         y_remove = False
+
         if len(x.shape) == 1 and len(y.shape) != 1:
             x_remove = True
 
@@ -581,8 +585,33 @@ class MatMul:
         if y_remove:
             y_grad = Tensor(y_grad.storage, y_grad.shape[:-1])
 
+        x_grad_shape = x_grad.shape
+        if len(x_grad_shape) == len(x_shape):
+            for dim in range(len(x_grad_shape)):
+                if x_grad_shape[dim] != x_shape[dim]:
+                    x_grad = x_grad.sum(dim)
+                else:
+                    pass
+        else:
+            for i in range(len(x_grad_shape) - len(x_shape)):
+                x_grad = x_grad.sum(0, keep_dim=False)
+            for dim in range(len(x_shape)):
+                if x_grad_shape[dim + len(x_grad_shape) - len(x_shape)] != x_shape[dim]:
+                    x_grad = x_grad.sum(dim)
 
-
+        y_grad_shape = y_grad.shape
+        if len(y_grad_shape) == len(y_shape):
+            for dim in range(len(y_grad_shape)):
+                if y_grad_shape[dim] != y_shape[dim]:
+                    y_grad = y_grad.sum(dim)
+                else:
+                    pass
+        else:
+            for i in range(len(y_grad_shape) - len(y_shape)):
+                y_grad = y_grad.sum(0, keep_dim=False)
+            for dim in range(len(y_shape)):
+                if y_grad_shape[dim + len(y_grad_shape) - len(y_shape)] != y_shape[dim]:
+                    y_grad = y_grad.sum(dim)
         return x_grad, y_grad
 
 
