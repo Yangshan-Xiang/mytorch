@@ -123,7 +123,7 @@ def tensor_reduce(func) -> Callable:
     """
 
     """
-    def _reduce(x: Tensor, dim: int) -> Tensor: # Without extra broadcasting
+    def _reduce(x: Tensor, dim: int, keep_dim: bool = True) -> Tensor: # Without extra broadcasting
         """
 
         """
@@ -147,7 +147,11 @@ def tensor_reduce(func) -> Callable:
                     out_storage[out_storage_idx] = x_storage[x_storage_idx]
                 else:
                     out_storage[out_storage_idx] = func(out_storage[out_storage_idx], x_storage[x_storage_idx])
-        return Tensor(out_storage, out_shape)
+        if keep_dim:
+            return Tensor(out_storage, out_shape)
+        else:
+            return Tensor(out_storage, out_shape[:dim] + out_shape[dim + 1:])
+
     return _reduce
 
 
@@ -402,6 +406,36 @@ class Permute:
         dims = cache
         return (grad.permute(*dims),)
 
+class Sum:
+    @staticmethod
+    def forward(x: Tensor, dim: int, keep_dim: bool = True) -> Tensor:
+        sum_x = tensor_reduce(add)(x, dim, keep_dim)
+
+        if x.history:
+            sum_x.history = History(Sum, (x.shape, dim), (x,))
+        else:
+            pass
+        return sum_x
+
+    @staticmethod
+    def backward(cache, grad: Tensor) -> tuple:
+        grad_storage, grad_shape, grad_stride, grad_offset = grad.core()
+        out_shape, dim = cache
+        if len(grad_shape) != len(out_shape):
+            grad_shape = grad_shape[:dim] + (1,) + grad_shape[dim:]
+            grad_stride = contiguous_stride(grad_shape)
+        else:
+            pass
+        num = math.prod(out_shape)
+        out_storage = [None] * num
+        for out_storage_idx in range(num):
+            out_tensor_idx = to_tensor_idx(out_storage_idx, out_shape)
+            grad_tensor_idx = from_broadcast_idx(out_tensor_idx, grad_shape)
+            grad_storage_idx = to_storage_idx(grad_tensor_idx, grad_stride, grad_offset)
+            out_storage[out_storage_idx] = grad_storage[grad_storage_idx]
+
+        return (Tensor(out_storage, out_shape),)
+
 
 def _eq(x: Tensor, y: Tensor) -> Tensor:
     if x.shape != y.shape:
@@ -493,6 +527,68 @@ class MatMul:
         """
 
         """
+        x, y = cache
+        x_remove = False
+        y_remove = False
+        if len(x.shape) == 1 and len(y.shape) != 1:
+            x_remove = True
+
+            x.stride = x.shape + x.stride
+            x.shape = (1,) + x.shape
+
+            grad.stride = grad.stride[:-1] + (grad.stride[-1],) + grad.stride[-1:]
+            grad.shape = grad.shape[:-1] + (1,) + grad.shape[-1:]
+            grad.stride = contiguous_stride(grad.shape)
+
+        if len(y.shape) == 1 and len(x.shape) != 1:
+            y_remove = True
+
+            y.shape = y.shape + (1,)
+            y.stride = (1,) + y.stride
+
+            grad.shape = grad.shape + (1,)
+            grad.stride = grad.stride + (1,)
+
+        if len(y.shape) == len(x.shape) == 1:
+            x_remove = True
+            y_remove = True
+
+            x.stride = x.shape + x.stride
+            x.shape = (1,) + x.shape
+
+            y.shape = y.shape + (1,)
+            y.stride = (1,) + y.stride
+
+            grad.shape = (1, 1)
+            grad.stride = (1, 1)
+
+        def transpose(t: Tensor):
+            t_shape = list(t.shape)
+            t_stride = list(t.stride)
+            t_shape[-1], t_shape[-2] = t_shape[-2], t_shape[-1]
+            t_stride[-1], t_stride[-2] = t_stride[-2], t_stride[-1]
+            t.shape = tuple(t_shape)
+            t.stride = tuple(t_stride)
+
+        transpose(x)
+        transpose(y)
+
+        x_grad = grad @ y
+        y_grad = x @ grad
+
+        if x_remove:
+            x_grad = Tensor(x_grad.storage, x_grad.shape[:-2] + x_grad.shape[-1:])
+        if y_remove:
+            y_grad = Tensor(y_grad.storage, y_grad.shape[:-1])
+
+
+
+        return x_grad, y_grad
+
+
+
+
+
 
 
 
@@ -513,6 +609,7 @@ Tensor.__lt__ = _lt
 Tensor.__pow__ = Pow.forward
 Tensor.__rpow__ = lambda x, y: Pow.forward(y, x)
 Tensor.__matmul__ = MatMul.forward
+Tensor.sum = Sum.forward
 Tensor.kron = NotImplemented
 Tensor.log = Log.forward
 Tensor.softmax = Softmax.forward

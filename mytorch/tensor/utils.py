@@ -115,3 +115,14 @@ def broadcastable(shape1: tuple, shape2: tuple) -> Union[bool, tuple]:
         else:
             broadcast_shape[i] = shape1[i]
     return tuple(broadcast_shape)
+
+
+def contiguous_stride(shape: tuple):
+    """
+    Return the contiguous stride of the tensor.
+    """
+
+    stride = [1] * len(shape)
+    for i, s in enumerate(tuple(reversed(shape[1:]))):
+        stride[i + 1] = stride[i] * s
+    return tuple(reversed(stride))

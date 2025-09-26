@@ -166,11 +166,7 @@ class Tensor:
         """
         Return the contiguous stride of the tensor.
         """
-        shape = self.shape
-        stride = [1] * len(shape)
-        for i, s in enumerate(tuple(reversed(shape[1:]))):
-            stride[i + 1] = stride[i] * s
-        return tuple(reversed(stride))
+        return contiguous_stride(self.shape)
 
     def broadcastable(self, other: 'Tensor') -> Union[bool, tuple]:
         """
@@ -322,6 +318,8 @@ class Tensor:
     def reshape(self, *shape):
         pass
     def permute(self, *dims):
+        pass
+    def sum(self, dim: int, keep_dim: bool = True):
         pass
 
 
