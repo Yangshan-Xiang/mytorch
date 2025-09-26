@@ -312,9 +312,29 @@ class Softmax:
         """
 
         """
-        pass
+
+        softmax_x, dim = cache  # Softmax output s
+        # Compute dot product <grad, s> along dim
+        grad_dot_s = tensor_reduce(mul)(grad * softmax_x, dim)
+        # Compute s * (grad - <grad, s>)
+        grad_x = softmax_x * (grad - grad_dot_s)
+        return (grad_x,)
 
 
+class Sigmoid:
+    @staticmethod
+    def forward(x: Tensor) -> Tensor:
+        sigmoid_x = tensor_map(sigmoid)(x)
+        if x.history:
+            sigmoid_x.history = History(Sigmoid, sigmoid_x.constant(), (x,))
+        else:
+            pass
+        return sigmoid_x
+
+    @staticmethod
+    def backward(cache, grad: Tensor) -> tuple:
+        sigmoid_x = cache
+        return (sigmoid_x * (Tensor([1]) - sigmoid_x) * grad,)
 
 class Pow:
     @staticmethod
@@ -404,9 +424,75 @@ def _gt(x: Tensor, y: Tensor) -> Tensor:
         pass
     return tensor_zip(gt)(x, y)
 
+class MatMul:
+    @staticmethod
+    def forward(x: Tensor, y: Tensor) -> Tensor:
+        """
 
+        Args:
 
+        Returns:
 
+        """
+
+        if not isinstance(y, Tensor):
+            raise TypeError(f"Expected Tensor, got {type(y).__name__} instead.")
+
+        x_storage, x_shape, x_stride, x_offset = x.core()
+        y_storage, y_shape, y_stride, y_offset = y.core()
+        x_remove = False # Check whether we need to remove imaginary dimension
+        y_remove = False
+        if len(x_shape) == 1: # Vector
+            x_remove = True
+            x_stride = x_shape + x_stride
+            x_shape = (1,) + x_shape # Convert to a matrix with an extra imaginary dimension of size 1
+        if len(y_shape) == 1:
+            y_remove = True
+            y_shape = y_shape + (1,)
+            y_stride = (1,) + y_stride
+
+        # The last two dimensions represent matrix, any extra dimensions ahead represent batch
+        if x_shape[-1] != y_shape[-2]:
+            raise ValueError(f"Shapes {x_shape[-2:]} and {y_shape[-2:]} are not compatible for matrix multiplication.")
+        else:
+            batch_shape = broadcastable(x_shape[:-2], y_shape[:-2]) # Batch shape can be broadcast
+            if batch_shape is False:
+                raise ValueError(f"Batch shapes are not broadcastable.")
+            else:
+                out_shape = batch_shape + (x_shape[-2], y_shape[-1])
+                num = math.prod(out_shape)
+                out_storage = [0] * num
+                for out_storage_idx in range(num):
+                    out_tensor_idx = to_tensor_idx(out_storage_idx, out_shape)
+                    for i in range(x_shape[-1]):
+                        x_tensor_idx = out_tensor_idx[:-1] + (i,)
+                        x_tensor_idx = from_broadcast_idx(x_tensor_idx, x_shape)
+
+                        y_tensor_idx = out_tensor_idx[:-2] + (i,) + out_tensor_idx[-1:]
+                        y_tensor_idx = from_broadcast_idx(y_tensor_idx, y_shape)
+
+                        x_storage_idx = to_storage_idx(x_tensor_idx, x_stride, x_offset)
+                        y_storage_idx = to_storage_idx(y_tensor_idx, y_stride, y_offset)
+                        out_storage[out_storage_idx] += x_storage[x_storage_idx] * y_storage[y_storage_idx]
+                if x_remove:
+                    out_shape = out_shape[:-2] + out_shape[-1:]
+                if y_remove:
+                    out_shape = out_shape[:-1]
+                if len(out_shape) == 0:
+                    out_shape = (1,) # Keep the shape (1, ) for scalar instead of ()
+                out = Tensor(out_storage, out_shape)
+
+                if x.history or y.history:
+                    out.history = History(MatMul, (x.constant(), y.constant()), (x, y))
+                else:
+                    pass
+                return out
+
+    @staticmethod
+    def backward(cache, grad: Tensor) -> tuple:
+        """
+
+        """
 
 
 
@@ -426,10 +512,11 @@ Tensor.__gt__ = _gt
 Tensor.__lt__ = _lt
 Tensor.__pow__ = Pow.forward
 Tensor.__rpow__ = lambda x, y: Pow.forward(y, x)
-
+Tensor.__matmul__ = MatMul.forward
 Tensor.kron = NotImplemented
 Tensor.log = Log.forward
 Tensor.softmax = Softmax.forward
+Tensor.sigmoid = Sigmoid.forward
 Tensor.exp = Exp.forward
 Tensor.relu = Relu.forward
 Tensor.rcp = Rcp.forward

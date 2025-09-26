@@ -1,4 +1,5 @@
 import math
+from typing import Union
 
 
 def to_storage_idx(tensor_idx: tuple, stride: tuple, offset: int) -> int:
@@ -90,3 +91,27 @@ def assign(lst: list, pos: tuple, value: float):
     for i in pos[:-1]:
         target = target[i]
     target[pos[-1]] = value
+
+
+def broadcastable(shape1: tuple, shape2: tuple) -> Union[bool, tuple]:
+    """
+    According to the broadcasting rules, we check whether two shapes are broadcastable,
+    if they aren't, return False, if they are, return the broadcast shape.
+    """
+
+    if len(shape1) > len(shape2):
+        broadcast_shape = list(shape1)
+    else:
+        broadcast_shape = list(shape2)
+    for i in range(-1, -min(len(shape1), len(shape2)) - 1, -1):
+        if shape1[i] != shape2[i]:
+            if shape1[i] != 1:
+                if shape2[i] != 1:
+                    return False
+                else:
+                    broadcast_shape[i] = shape1[i]
+            else:
+                broadcast_shape[i] = shape2[i]
+        else:
+            broadcast_shape[i] = shape1[i]
+    return tuple(broadcast_shape)

@@ -188,25 +188,7 @@ class Tensor:
         if not isinstance(other, Tensor):
             raise TypeError(f"Expected Tensor, got {type(other).__name__} instead.")
         else:
-            self_shape = self.shape
-            other_shape = other.shape
-            if len(self_shape) > len(other_shape):
-                broadcast_shape = list(self_shape)
-            else:
-                broadcast_shape = list(other_shape)
-
-        for i in range(-1, -min(len(self_shape), len(other_shape)) - 1, -1):
-            if self_shape[i] != other_shape[i]:
-                if self_shape[i] != 1:
-                    if other_shape[i] != 1:
-                        return False
-                    else:
-                        broadcast_shape[i] = self_shape[i]
-                else:
-                    broadcast_shape[i] = other_shape[i]
-            else:
-                broadcast_shape[i] = self_shape[i]
-        return tuple(broadcast_shape)
+            return broadcastable(self.shape, other.shape)
 
     def __getitem__(self):
         pass
@@ -326,6 +308,8 @@ class Tensor:
     def __matmul__(self, other):
         pass
     def softmax(self, dim: int):
+        pass
+    def sigmoid(self):
         pass
     def log(self):
         pass
