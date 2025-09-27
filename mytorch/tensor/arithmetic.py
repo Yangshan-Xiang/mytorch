@@ -71,7 +71,7 @@ def tensor_zip(func) -> Callable:
     """
 
     """
-    def _zip(x: Tensor, y: Tensor) -> Tensor: # We now only consider both inputs are Tensor without extra broadcasting
+    def _zip(x: Tensor, y: Tensor) -> Tensor:
         """
 
         """
@@ -123,7 +123,7 @@ def tensor_reduce(func) -> Callable:
     """
 
     """
-    def _reduce(x: Tensor, dim: int, keep_dim: bool = True) -> Tensor: # Without extra broadcasting
+    def _reduce(x: Tensor, dim: int, keep_dim: bool = True) -> Tensor:
         """
 
         """
@@ -302,9 +302,11 @@ class Relu:
         return (grad * (x > Tensor([0])),)
 
 class Softmax:
+    """
+
+    """
     @staticmethod
     def forward(x: Tensor, dim: int) -> Tensor:
-        x.update(x.constant() - Tensor([max(x.storage)])) # Subtract the maximum value for numerical stability
         exp_x = tensor_map(exp)(x)
         sum_exp_x = tensor_reduce(add)(exp_x, dim)
         softmax_x = exp_x / sum_exp_x
@@ -319,13 +321,9 @@ class Softmax:
         """
 
         """
+        softmax_x, dim = cache
 
-        softmax_x, dim = cache  # Softmax output s
-        # Compute dot product <grad, s> along dim
-        grad_dot_s = tensor_reduce(mul)(grad * softmax_x, dim)
-        # Compute s * (grad - <grad, s>)
-        grad_x = softmax_x * (grad - grad_dot_s)
-        return (grad_x,)
+        return (softmax_x * (grad - tensor_reduce(add)(grad * softmax_x, dim)),)
 
 
 class Sigmoid:
@@ -422,22 +420,40 @@ class Sum:
 
     @staticmethod
     def backward(cache, grad: Tensor) -> tuple:
-        grad_storage, grad_shape, grad_stride, grad_offset = grad.core()
         out_shape, dim = cache
-        if len(grad_shape) != len(out_shape):
-            grad_shape = grad_shape[:dim] + (1,) + grad_shape[dim:]
-            grad_stride = contiguous_stride(grad_shape)
+        if len(grad.shape) != len(out_shape):
+            grad.shape = grad.shape[:dim] + (1,) + grad.shape[dim:]
+            grad.stride = contiguous_stride(grad.shape)
         else:
             pass
-        num = math.prod(out_shape)
-        out_storage = [None] * num
-        for out_storage_idx in range(num):
-            out_tensor_idx = to_tensor_idx(out_storage_idx, out_shape)
-            grad_tensor_idx = from_broadcast_idx(out_tensor_idx, grad_shape)
-            grad_storage_idx = to_storage_idx(grad_tensor_idx, grad_stride, grad_offset)
-            out_storage[out_storage_idx] = grad_storage[grad_storage_idx]
 
-        return (Tensor(out_storage, out_shape),)
+        return (Ones(out_shape) * grad,)
+
+
+class Prod:
+    @staticmethod
+    def forward(x: Tensor, dim: int, keep_dim: bool = True) -> Tensor:
+        prod_x = tensor_reduce(mul)(x, dim, keep_dim)
+
+        if x.history:
+            prod_x.history = History(Prod, (x.constant(), prod_x.constant(), dim), (x,))
+        else:
+            pass
+        return prod_x
+
+    @staticmethod
+    def backward(cache, grad: Tensor) -> tuple:
+        x, prod_x, dim = cache
+        if len(grad.shape) != len(x.shape):
+            grad.shape = grad.shape[:dim] + (1,) + grad.shape[dim:]
+            grad.stride = contiguous_stride(grad.shape)
+
+            prod_x.shape = prod_x.shape[:dim] + (1,) + prod_x.shape[dim:]
+            prod_x.stride = contiguous_stride(prod_x.shape)
+        else:
+            pass
+
+        return (grad * prod_x / x,)
 
 
 class MatMul:
@@ -639,6 +655,7 @@ Tensor.__pow__ = Pow.forward
 Tensor.__rpow__ = lambda x, y: Pow.forward(y, x)
 Tensor.__matmul__ = MatMul.forward
 Tensor.sum = Sum.forward
+Tensor.prod = Prod.forward
 Tensor.kron = NotImplemented
 Tensor.log = Log.forward
 Tensor.softmax = Softmax.forward

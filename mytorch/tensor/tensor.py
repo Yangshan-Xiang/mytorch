@@ -320,7 +320,24 @@ class Tensor:
         pass
     def sum(self, dim: int, keep_dim: bool = True):
         pass
+    def prod(self, dim: int, keep_dim: bool = True):
+        pass
 
+class Ones(Tensor):
+    """
+    All-one tensor
+    """
+    def __init__(self, shape: tuple, history: History = None):
+        storage = [1] * math.prod(shape)
+        super().__init__(storage, shape, history = history)
+
+class Zeros(Tensor):
+    """
+    All-zero tensor
+    """
+    def __init__(self, shape: tuple, history: History = None):
+        storage = [0] * math.prod(shape)
+        super().__init__(storage, shape, history = history)
 
 
 

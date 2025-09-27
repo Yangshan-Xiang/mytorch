@@ -52,12 +52,11 @@ class Linear(Model):
         self.out_size = out_size
         self.needs_bias = needs_bias
 
-        weight = Tensor([random.random()] * in_size * out_size, (in_size, out_size))
-        self.weight = Parameter(weight)
+
+        self.weight = Parameter(Tensor([random.random()] * in_size * out_size, (in_size, out_size)))
 
         if needs_bias:
-            bias = Tensor([random.random()] * out_size)
-            self.bias = Parameter(bias)
+            self.bias = Parameter(Tensor([random.random()] * out_size))
         else:
             self.bias = None
 
@@ -71,8 +70,7 @@ class Linear(Model):
         if x.shape[-1] != self.in_size:
             raise ValueError("The size of the last dimension of the input must equal "
                              "the input size of the linear model.")
-        else:
-            pass
+
         return x @ self.weight + self.bias
 
 

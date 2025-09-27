@@ -260,6 +260,15 @@ class TestFunctions(unittest.TestCase):
         self.assertEqual(out.stride, (2, 1))
         self.assertEqual(out.offset, 0)
 
+    def test_sigmoid(self):
+        out = self.tensor.sigmoid()
+        for i, element in enumerate(out.storage):
+            self.assertAlmostEqual(element, [0.9526, 0.9933, 0.982, 0.9975][i], places=4)
+
+        out = self.tensor4.sigmoid()
+        for i, element in enumerate(out.storage):
+            self.assertAlmostEqual(element, [0.7311, 0.8808, 0.9526, 0.982, 0.9933, 0.9975][i], places=4)
+
     def test_pow(self):
         out = self.tensor ** Tensor([2])
         self.assertEqual(out.storage, [9, 25, 16, 36])
@@ -309,6 +318,12 @@ class TestFunctions(unittest.TestCase):
         self.assertEqual((self.tensor2.reshape(2, 2) @ self.tensor2.reshape(2, 2)).__repr__(), "Tensor([[7, 10], [15, 22]])")
         self.assertEqual((self.tensor3 @ self.tensor3.permute(1, 0)).__repr__(), "Tensor([[17, 22, 27], [22, 29, 36], [27, 36, 45]])")
         self.assertEqual((self.tensor3.permute(1, 0) @ self.tensor3).__repr__(), "Tensor([[14, 32], [32, 77]])")
+
+    def test_prod(self):
+        self.assertEqual(self.tensor.prod(0).__repr__(), "Tensor([[12, 30]])")
+        self.assertEqual(self.tensor.prod(1).__repr__(), "Tensor([[15], [24]])")
+        self.assertEqual(self.tensor.prod(0, keep_dim=False).__repr__(), "Tensor([12, 30])")
+        self.assertEqual(self.tensor.prod(1, keep_dim=False).__repr__(), "Tensor([15, 24])")
 
 
 
