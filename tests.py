@@ -297,14 +297,18 @@ class TestFunctions(unittest.TestCase):
         self.assertEqual(self.tensor3.permute(1, 0).__repr__(), "Tensor([[1, 2, 3], [4, 5, 6]])")
         self.assertEqual(self.tensor4.permute(1, 0).__repr__(), "Tensor([[1, 3, 5], [2, 4, 6]])")
 
+    def test_sum(self):
+        self.assertEqual(self.tensor.sum(0).__repr__(), "Tensor([[7, 11]])")
+        self.assertEqual(self.tensor.sum(1).__repr__(), "Tensor([[8], [10]])")
+        self.assertEqual(self.tensor.sum(0, keep_dim=False).__repr__(), "Tensor([7, 11])")
+        self.assertEqual(self.tensor.sum(1, keep_dim=False).__repr__(), "Tensor([8, 10])")
 
-
-
-
-
-
-
-
+    def test_matmul(self):
+        self.assertEqual((self.tensor @ self.tensor).__repr__(), "Tensor([[29, 45], [36, 56]])")
+        self.assertEqual((self.tensor @ self.tensor.permute(1, 0)).__repr__(), "Tensor([[34, 42], [42, 52]])")
+        self.assertEqual((self.tensor2.reshape(2, 2) @ self.tensor2.reshape(2, 2)).__repr__(), "Tensor([[7, 10], [15, 22]])")
+        self.assertEqual((self.tensor3 @ self.tensor3.permute(1, 0)).__repr__(), "Tensor([[17, 22, 27], [22, 29, 36], [27, 36, 45]])")
+        self.assertEqual((self.tensor3.permute(1, 0) @ self.tensor3).__repr__(), "Tensor([[14, 32], [32, 77]])")
 
 
 

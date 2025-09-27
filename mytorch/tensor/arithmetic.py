@@ -150,7 +150,10 @@ def tensor_reduce(func) -> Callable:
         if keep_dim:
             return Tensor(out_storage, out_shape)
         else:
-            return Tensor(out_storage, out_shape[:dim] + out_shape[dim + 1:])
+            if len(out_shape) == 1:
+                return Tensor(out_storage, out_shape)
+            else:
+                return Tensor(out_storage, out_shape[:dim] + out_shape[dim + 1:])
 
     return _reduce
 
@@ -437,27 +440,6 @@ class Sum:
         return (Tensor(out_storage, out_shape),)
 
 
-def _eq(x: Tensor, y: Tensor) -> Tensor:
-    if x.shape != y.shape:
-        raise ValueError(f"Input tensors must have the same shape, got {x.shape} & {y.shape} instead.")
-    else:
-        pass
-    return tensor_zip(eq)(x, y)
-
-def _lt(x: Tensor, y: Tensor) -> Tensor:
-    if x.shape != y.shape:
-        raise ValueError(f"Input tensors must have the same shape, got {x.shape} & {y.shape} instead.")
-    else:
-        pass
-    return tensor_zip(lt)(x, y)
-
-def _gt(x: Tensor, y: Tensor) -> Tensor:
-    if x.shape != y.shape:
-        raise ValueError(f"Input tensors must have the same shape, got {x.shape} & {y.shape} instead.")
-    else:
-        pass
-    return tensor_zip(gt)(x, y)
-
 class MatMul:
     @staticmethod
     def forward(x: Tensor, y: Tensor) -> Tensor:
@@ -529,7 +511,8 @@ class MatMul:
         """
 
         x, y = cache
-        x_shape = x.shape
+        x_shape = x.shape # Remember the original shape to adjust the shape of the output gradient,
+        # as they must align with each other
         y_shape = y.shape
         x_remove = False
         y_remove = False
@@ -585,39 +568,56 @@ class MatMul:
         if y_remove:
             y_grad = Tensor(y_grad.storage, y_grad.shape[:-1])
 
-        x_grad_shape = x_grad.shape
-        if len(x_grad_shape) == len(x_shape):
-            for dim in range(len(x_grad_shape)):
-                if x_grad_shape[dim] != x_shape[dim]:
-                    x_grad = x_grad.sum(dim)
-                else:
-                    pass
-        else:
-            for i in range(len(x_grad_shape) - len(x_shape)):
-                x_grad = x_grad.sum(0, keep_dim=False)
-            for dim in range(len(x_shape)):
-                if x_grad_shape[dim + len(x_grad_shape) - len(x_shape)] != x_shape[dim]:
-                    x_grad = x_grad.sum(dim)
+        def align(gradient: Tensor, shape: tuple) -> Tensor:
+            """
+            As we allow for batched matrix multiplication, the shape of the output gradient might not
+            match the shape of the respective tensor parameter, so this function is used to align
+            their shape by sum over the broadcast dimensions of the output gradient.
 
-        y_grad_shape = y_grad.shape
-        if len(y_grad_shape) == len(y_shape):
-            for dim in range(len(y_grad_shape)):
-                if y_grad_shape[dim] != y_shape[dim]:
-                    y_grad = y_grad.sum(dim)
-                else:
-                    pass
-        else:
-            for i in range(len(y_grad_shape) - len(y_shape)):
-                y_grad = y_grad.sum(0, keep_dim=False)
-            for dim in range(len(y_shape)):
-                if y_grad_shape[dim + len(y_grad_shape) - len(y_shape)] != y_shape[dim]:
-                    y_grad = y_grad.sum(dim)
-        return x_grad, y_grad
+            Args:
+                gradient (Tensor): The gradient of the tensor parameter.
+                shape (tuple): The shape of the tensor parameter which is also the target shape of our gradient.
+
+            Returns:
+                Tensor: The gradient whose shape is aligned.
+
+            """
+            grad_shape = gradient.shape
+            if grad_shape != shape:
+                for dim in range(-1, -len(shape) - 1, -1):
+                    if grad_shape[dim] != shape[dim]:
+                        gradient = gradient.sum(dim)
+                if len(grad_shape) != len(shape):
+                    for _ in range(len(grad_shape) - len(shape)):
+                        gradient = gradient.sum(0, keep_dim=False)
+            return gradient
+
+        return align(x_grad, x_shape), align(y_grad, y_shape)
 
 
 
 
 
+def _eq(x: Tensor, y: Tensor) -> Tensor:
+    if x.shape != y.shape:
+        raise ValueError(f"Input tensors must have the same shape, got {x.shape} & {y.shape} instead.")
+    else:
+        pass
+    return tensor_zip(eq)(x, y)
+
+def _lt(x: Tensor, y: Tensor) -> Tensor:
+    if x.shape != y.shape:
+        raise ValueError(f"Input tensors must have the same shape, got {x.shape} & {y.shape} instead.")
+    else:
+        pass
+    return tensor_zip(lt)(x, y)
+
+def _gt(x: Tensor, y: Tensor) -> Tensor:
+    if x.shape != y.shape:
+        raise ValueError(f"Input tensors must have the same shape, got {x.shape} & {y.shape} instead.")
+    else:
+        pass
+    return tensor_zip(gt)(x, y)
 
 
 

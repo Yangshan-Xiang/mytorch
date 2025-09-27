@@ -1,4 +1,3 @@
-import math
 from typing import Union
 from mytorch.tensor.utils import *
 
