@@ -1,6 +1,8 @@
-from mytorch.models import *
-from mytorch.optimizers import *
 import random
+import numpy as np
+from mytorch.tensor.models import *
+from mytorch.tensor.arithmetic import *
+from mytorch.tensor.optimizers import *
 
 
 class Data:
@@ -55,32 +57,26 @@ def train(model: str, optim: str):
 
     for epoch in range(1, epochs + 1):
         correct = 0
-        total_loss = 0
-        xs, ys = Data(pts).circle()
-        xs_flat = [i for x in xs for i in x]
+        total_loss = Tensor([0])
+        xs, ys = Data(pts).diagonal()
+        ys = Tensor(ys, (100,1))
+        xs = [i for x in xs for i in x]
+        xs = Tensor(xs, (pts, 2))
 
+        prob = model(xs).sigmoid()
+        pred = prob > Tensor([0.5]) * Tensor([1] * 100, (100,1))
+        correct = pred == ys.reshape(100,1)
+        num_correct = correct.sum(0)
 
-        for i in range(len(xs)):
-            prob = model(xs[i])[0].sigmoid()
-            y = ys[i]
-            if y == 1 and prob.value >= 0.5:
-                correct += 1
-            else:
-                pass
-            if y == 0 and prob.value <= 0.5:
-                correct += 1
-            else:
-                pass
-
-            loss = - (y * prob.log() + (1 - y) * (1 - prob).log())
-            total_loss += loss
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+        loss = - (ys * prob.log() + (Tensor([1]) - ys) * (Tensor([1]) - prob).log())
+        total_loss += loss
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
 
         if epoch % 10 == 0:
-            print(f'epoch: {epoch}/{epochs}, accuracy: {correct * 100 / pts :.2f}%, loss: {total_loss.value / pts ** 2:.4f}')
+            print(loss.storage[:10])
 
 
 if __name__ == "__main__":
-    train('MLP', 'Adagrad')
+    train('Linear', 'SGD')
