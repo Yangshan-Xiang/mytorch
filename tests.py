@@ -46,9 +46,6 @@ class TestFunctions(unittest.TestCase):
         self.offset4 = 0
         self.tensor4 = Tensor(self.storage4, self.shape4, self.stride4, self.offset4)
 
-
-
-
     def test_topological_ordering(self):
         right_ordering = [id(self.output), id(self.c), id(self.b), id(self.a), id(self.y), id(self.x)]
         ordering = []
@@ -222,14 +219,35 @@ class TestFunctions(unittest.TestCase):
         self.assertEqual(out.stride, (6, 2, 1))
         self.assertEqual(out.offset, 0)
 
-        out4 = self.tensor3 + self.tensor4
-        self.assertEqual(out4.storage, [2, 6, 5, 9, 8, 12])
-        self.assertEqual(out4.shape, (3, 2))
-        self.assertEqual(out4.stride, (2, 1))
-        self.assertEqual(out4.offset, 0)
+        out = self.tensor3 + self.tensor4
+        self.assertEqual(out.storage, [2, 6, 5, 9, 8, 12])
+        self.assertEqual(out.shape, (3, 2))
+        self.assertEqual(out.stride, (2, 1))
+        self.assertEqual(out.offset, 0)
+
+
+        self.assertEqual((self.tensor + 1).__repr__(), "Tensor([[4, 6], [5, 7]])")
+        self.assertEqual((1 + self.tensor).__repr__(), "Tensor([[4, 6], [5, 7]])")
+
 
         self.assertRaises(ValueError, self.tensor.__add__, self.tensor3)
         self.assertRaises(ValueError, self.tensor.__add__, self.tensor4)
+
+    def test_sub(self):
+        self.assertEqual((self.tensor - 1).__repr__(), "Tensor([[2, 4], [3, 5]])")
+        self.assertEqual((1 - self.tensor).__repr__(), "Tensor([[-2, -4], [-3, -5]])")
+
+    def test_mul(self):
+        self.assertEqual((self.tensor * 2).__repr__(), "Tensor([[6, 10], [8, 12]])")
+        self.assertEqual((2 * self.tensor).__repr__(), "Tensor([[6, 10], [8, 12]])")
+
+    def test_div(self):
+        self.assertEqual((self.tensor / 2).__repr__(), "Tensor([[1.5, 2.5], [2.0, 3.0]])")
+        self.assertEqual((60 / self.tensor).__repr__(), "Tensor([[20.0, 12.0], [15.0, 10.0]])")
+
+    def test_pow(self):
+        self.assertEqual((self.tensor ** 2).__repr__(), "Tensor([[9, 25], [16, 36]])") # type: ignore
+        self.assertEqual((2 ** self.tensor).__repr__(), "Tensor([[8, 32], [16, 64]])") # type: ignore
 
     def test_softmax(self):
         out = self.tensor.softmax(0)

@@ -1,4 +1,5 @@
 import itertools
+import math
 
 from mytorch.tensor.tensor import *
 from mytorch.tensor.operations import *
@@ -30,11 +31,9 @@ def tensor_map(func) -> Callable:
             Tensor: The output tensor.
 
         """
-        if not isinstance(inp, Tensor):
-            raise TypeError(f"Expected Tensor, got {type(inp)} instead.")
-        else:
-            inp_storage, inp_shape, inp_stride, inp_offset = inp.core()
-            inp_num = math.prod(inp_shape)
+
+        inp_storage, inp_shape, inp_stride, inp_offset = inp.core()
+        inp_num = math.prod(inp_shape)
 
         if out_shape is None or (isinstance(out_shape, tuple) and inp_shape == out_shape): # Without broadcasting
             out_storage = [None] * inp_num
@@ -75,13 +74,9 @@ def tensor_zip(func) -> Callable:
         """
 
         """
-        if not isinstance(x, Tensor):
-            raise TypeError(f"The 1st argument is expected to be Tensor, got {type(x)} instead.")
-        elif not isinstance(y, Tensor):
-            raise TypeError(f"The 2nd argument is expected to be Tensor, got {type(y)} instead.")
-        else:
-            x_storage, x_shape, x_stride, x_offset = x.core()
-            y_storage, y_shape, y_stride, y_offset = y.core()
+
+        x_storage, x_shape, x_stride, x_offset = x.core()
+        y_storage, y_shape, y_stride, y_offset = y.core()
 
         if x_shape == y_shape: # Without broadcasting
             num = math.prod(x_shape)
@@ -127,10 +122,9 @@ def tensor_reduce(func) -> Callable:
         """
 
         """
-        if not isinstance(x, Tensor):
-            raise TypeError(f"Expected Tensor, got {type(x)} instead.")
-        else:
-            x_storage, x_shape, x_stride, x_offset = x.core()
+
+        x_storage, x_shape, x_stride, x_offset = x.core()
+
         out_shape = list(x_shape)
         out_shape[dim] = 1
         out_shape = tuple(out_shape)
@@ -156,6 +150,18 @@ def tensor_reduce(func) -> Callable:
                 return Tensor(out_storage, out_shape[:dim] + out_shape[dim + 1:])
 
     return _reduce
+
+
+def to_tensor(x: Union[float, int]) -> Tensor:
+    """
+    Convert some other types of data into our tensor, in order to allow computations between them.
+    """
+    if isinstance(x, (float, int)): # So far only float and int
+        return Tensor([x])
+    elif isinstance(x, Tensor):
+        return x
+    else:
+        raise TypeError(f"{type(x)} is not supported for computations.")
 
 
 class Neg:
@@ -192,7 +198,8 @@ class Exp:
 
 class Add:
     @staticmethod
-    def forward(x: Tensor, y: Tensor) -> Tensor:
+    def forward(x: Tensor, y: Union[Tensor, float, int]) -> Tensor:
+        y = to_tensor(y)
         add_x_y = tensor_zip(add)(x, y)
         if x.history or y.history:
             add_x_y.history = History(Add, (), (x, y))
@@ -207,7 +214,9 @@ class Add:
 
 class Sub:
     @staticmethod
-    def forward(x: Tensor, y: Tensor) -> Tensor:
+    def forward(x: Union[Tensor, float, int], y: Union[Tensor, float, int]) -> Tensor:
+        x = to_tensor(x)
+        y = to_tensor(y)
         sub_x_y = tensor_zip(sub)(x, y)
         if x.history or y.history:
             sub_x_y.history = History(Sub, (), (x, y))
@@ -222,7 +231,8 @@ class Sub:
 
 class Mul:
     @staticmethod
-    def forward(x: Tensor, y: Tensor) -> Tensor:
+    def forward(x: Tensor, y: Union[Tensor, float, int]) -> Tensor:
+        y = to_tensor(y)
         mul_x_y = tensor_zip(mul)(x, y)
         if x.history or y.history:
             mul_x_y.history = History(Mul, (x.constant(), y.constant()), (x, y))
@@ -238,7 +248,9 @@ class Mul:
 
 class Div:
     @staticmethod
-    def forward(x: Tensor, y: Tensor) -> Tensor:
+    def forward(x: Union[Tensor, float, int], y: Union[Tensor, float, int]) -> Tensor:
+        x = to_tensor(x)
+        y = to_tensor(y)
         div_x_y = tensor_zip(div)(x, y)
         if x.history or y.history:
             cache = (x.constant(), y.constant())
@@ -250,13 +262,13 @@ class Div:
     @staticmethod
     def backward(cache, grad: Tensor) -> tuple:
         x, y = cache
-        return grad / y, -grad * x / y ** Tensor([2])
+        return grad / y, -grad * x / (y ** 2)
 
 
 class Rcp:
     @staticmethod
     def forward(x: Tensor) -> Tensor:
-        rcp_x = tensor_map(div)(x)
+        rcp_x = tensor_map(rcp)(x)
         if x.history:
             rcp_x.history = History(Rcp, rcp_x.constant(), (x,))
         else:
@@ -266,7 +278,7 @@ class Rcp:
     @staticmethod
     def backward(cache, grad: Tensor) -> tuple:
         rcp_x = cache
-        return (-grad * rcp_x ** Tensor([2]),)
+        return (-grad * rcp_x ** 2,)
 
 
 class Log:
@@ -286,6 +298,22 @@ class Log:
         return (grad / x,)
 
 
+class Sqrt:
+    @staticmethod
+    def forward(x: Tensor) -> Tensor:
+        sqrt_x = tensor_map(sqrt)(x)
+        if x.history:
+            sqrt_x.history = History(Sqrt, sqrt_x.constant(), (x,))
+        else:
+            pass
+        return sqrt_x
+
+    @staticmethod
+    def backward(cache, grad: Tensor) -> tuple:
+        sqrt_x = cache
+        return (grad / (2 * sqrt_x),)
+
+
 class Relu:
     @staticmethod
     def forward(x: Tensor) -> Tensor:
@@ -299,7 +327,7 @@ class Relu:
     @staticmethod
     def backward(cache, grad: Tensor) -> tuple:
         x = cache
-        return (grad * (x > Tensor([0])),)
+        return (grad * (x > 0),)
 
 class Softmax:
     """
@@ -339,14 +367,18 @@ class Sigmoid:
     @staticmethod
     def backward(cache, grad: Tensor) -> tuple:
         sigmoid_x = cache
-        return (sigmoid_x * (Tensor([1]) - sigmoid_x) * grad,)
+        return (sigmoid_x * (1 - sigmoid_x) * grad,)
 
 class Pow:
     @staticmethod
-    def forward(x: Tensor, y: Tensor) -> Tensor:
+    def forward(x: Union[Tensor, float, int], y: Union[Tensor, float, int]) -> Tensor:
+        x = to_tensor(x)
+        y = to_tensor(y)
         pow_x_y = tensor_zip(pow)(x, y)
         if x.history or y.history:
-            pow_x_y.history = History(Pow, (x.constant(), y.constant()), (x, y))
+            cache = (x.constant(), y.constant())
+            parents = (x, y)
+            pow_x_y.history = History(Pow, cache, parents)
         else:
             pass
         return pow_x_y
@@ -354,7 +386,7 @@ class Pow:
     @staticmethod
     def backward(cache, grad: Tensor) -> tuple:
         x, y = cache
-        return grad * y * x ** (y - Tensor([1])), x.log() * x ** y
+        return grad * y * x ** (y - 1), x.log() * x ** y
 
 class Reshape:
     @staticmethod
@@ -611,53 +643,29 @@ class MatMul:
         return align(x_grad, x_shape), align(y_grad, y_shape)
 
 
-
-
-
-def _eq(x: Tensor, y: Tensor) -> Tensor:
-    if x.shape != y.shape:
-        raise ValueError(f"Input tensors must have the same shape, got {x.shape} & {y.shape} instead.")
-    else:
-        pass
-    return tensor_zip(eq)(x, y)
-
-def _lt(x: Tensor, y: Tensor) -> Tensor:
-    if x.shape != y.shape:
-        raise ValueError(f"Input tensors must have the same shape, got {x.shape} & {y.shape} instead.")
-    else:
-        pass
-    return tensor_zip(lt)(x, y)
-
-def _gt(x: Tensor, y: Tensor) -> Tensor:
-    if x.shape != y.shape:
-        raise ValueError(f"Input tensors must have the same shape, got {x.shape} & {y.shape} instead.")
-    else:
-        pass
-    return tensor_zip(gt)(x, y)
-
-
-
-
 Tensor.__neg__ = Neg.forward
 Tensor.__add__ = Add.forward
 Tensor.__radd__ = Add.forward
 Tensor.__sub__ = Sub.forward
 Tensor.__rsub__ = lambda x, y: Sub.forward(y, x)
-
 Tensor.__mul__ = Mul.forward
 Tensor.__rmul__ = Mul.forward
 Tensor.__truediv__ = Div.forward
 Tensor.__rtruediv__ = lambda x, y: Div.forward(y, x)
-Tensor.__eq__ = _eq
-Tensor.__gt__ = _gt
-Tensor.__lt__ = _lt
+Tensor.__eq__ = lambda x, y: tensor_zip(eq)(x, to_tensor(y))
+Tensor.__gt__ = lambda x, y: tensor_zip(gt)(x, to_tensor(y))
+Tensor.__lt__ = lambda x, y: tensor_zip(lt)(x, to_tensor(y))
+Tensor.__ge__ = lambda x, y: tensor_zip(ge)(x, to_tensor(y))
+Tensor.__le__ = lambda x, y: tensor_zip(le)(x, to_tensor(y))
 Tensor.__pow__ = Pow.forward
 Tensor.__rpow__ = lambda x, y: Pow.forward(y, x)
 Tensor.__matmul__ = MatMul.forward
+
 Tensor.sum = Sum.forward
 Tensor.prod = Prod.forward
 Tensor.kron = NotImplemented
 Tensor.log = Log.forward
+Tensor.sqrt = Sqrt.forward
 Tensor.softmax = Softmax.forward
 Tensor.sigmoid = Sigmoid.forward
 Tensor.exp = Exp.forward

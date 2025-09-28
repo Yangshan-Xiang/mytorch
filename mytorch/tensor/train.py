@@ -1,7 +1,4 @@
-import random
-import numpy as np
 from mytorch.tensor.models import *
-from mytorch.tensor.arithmetic import *
 from mytorch.tensor.optimizers import *
 
 
@@ -56,26 +53,25 @@ def train(model: str, optim: str):
         raise ValueError(f'Optimizer {optim} is not supported')
 
     for epoch in range(1, epochs + 1):
-        correct = 0
-        total_loss = Tensor([0])
+
         xs, ys = Data(pts).diagonal()
-        ys = Tensor(ys, (100,1))
+        ys = Tensor(ys, (pts, 1)) # (100, 1)
         xs = [i for x in xs for i in x]
-        xs = Tensor(xs, (pts, 2))
+        xs = Tensor(xs, (pts, 2)) # (100, 2)
 
-        prob = model(xs).sigmoid()
-        pred = prob > Tensor([0.5]) * Tensor([1] * 100, (100,1))
-        correct = pred == ys.reshape(100,1)
-        num_correct = correct.sum(0)
+        prob = model(xs).sigmoid() # (100, 1) @ (2, 1) = (100, 1)
+        loss = - (ys * prob.log() + (Tensor([1]) - ys) * (Tensor([1]) - prob).log()) # (100, 1)
 
-        loss = - (ys * prob.log() + (Tensor([1]) - ys) * (Tensor([1]) - prob).log())
-        total_loss += loss
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
+        pred = prob > Tensor([0.5]) # (100, 1)
+        correct = pred == ys # (100, 1)
+        num_correct = correct.sum(0)
+
         if epoch % 10 == 0:
-            print(loss.storage[:10])
+            print(num_correct / Tensor([pts]))
 
 
 if __name__ == "__main__":

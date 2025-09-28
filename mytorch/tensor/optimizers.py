@@ -57,7 +57,6 @@ class SGD(Optimizer):
                     grad = self.buffer[i]
             else:
                 pass
-
             param.update(param.constant() - self.lr * grad)
 
 

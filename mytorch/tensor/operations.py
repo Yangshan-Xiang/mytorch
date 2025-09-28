@@ -24,6 +24,9 @@ def exp(x: float) -> float:
 def log(x: float) -> float:
     return math.log(x + eps)
 
+def sqrt(x: float) -> float:
+    return math.sqrt(x + eps)
+
 def relu(x: float) -> float:
     return max(0.0, x)
 
@@ -39,8 +42,16 @@ def eq(x: float, y: float) -> bool:
 def gt(x: float, y: float) -> bool:
     return x > y
 
+def ge(x: float, y: float) -> bool:
+    return x >= y
+
 def lt(x: float, y: float) -> bool:
     return x < y
+
+def le(x: float, y: float) -> bool:
+    return x <= y
+
+
 
 
 

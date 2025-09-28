@@ -308,6 +308,8 @@ class Tensor:
         pass
     def log(self):
         pass
+    def sqrt(self):
+        pass
     def exp(self):
         pass
     def relu(self):
