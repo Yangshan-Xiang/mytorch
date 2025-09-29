@@ -1,8 +1,3 @@
-import itertools
-import math
-
-from torch.nn.init import constant
-
 from mytorch.tensor.tensor import *
 from mytorch.tensor.operations import *
 from mytorch.tensor.utils import *
