@@ -1,3 +1,4 @@
+from mytorch.tensor.arithmetic import *
 from mytorch.tensor.models import *
 from mytorch.tensor.optimizers import *
 
@@ -39,7 +40,7 @@ def train(model: str, optim: str):
     if model == 'Linear':
         model = Linear(2, 1)
     elif model == 'MLP':
-        model = MLP(8, 1)
+        model = MLP(2, 1)
     else:
         raise ValueError(f'Model {model} is not supported')
 
@@ -53,13 +54,12 @@ def train(model: str, optim: str):
         raise ValueError(f'Optimizer {optim} is not supported')
 
     for epoch in range(1, epochs + 1):
-
         xs, ys = Data(pts).diagonal()
         ys = Tensor(ys, (pts, 1)) # (100, 1)
         xs = [i for x in xs for i in x]
         xs = Tensor(xs, (pts, 2)) # (100, 2)
 
-        prob = model(xs).sigmoid() # (100, 1) @ (2, 1) = (100, 1)
+        prob = model(xs).sigmoid() # (100, 2) @ (2, 1) = (100, 1)
         loss = - (ys * prob.log() + (Tensor([1]) - ys) * (Tensor([1]) - prob).log()) # (100, 1)
 
         optimizer.zero_grad()

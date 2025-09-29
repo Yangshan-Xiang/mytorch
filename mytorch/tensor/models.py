@@ -1,7 +1,6 @@
 from mytorch.tensor.tensor import *
 import random
 
-
 class Parameter(Tensor):
     """
     To register a tensor, so it can be recognized as a model parameter.
@@ -35,72 +34,93 @@ class Model:
                 params.append(attr[1])
             elif isinstance(attr[1], Model):
                 params.extend(attr[1].get_params())
+            elif isinstance(attr[1], Models):
+                for model in attr[1]:
+                    params.extend(model.get_params())
             else:
                 pass
         return params
+
+class Models:
+    """
+
+    """
+    def __init__(self, *models):
+        for model in models:
+            if not isinstance(model, (Model, Models)):
+                raise AssertionError(f"Expected Model or Models, got {type(model).__name__} instead.")
+        self.models = list(models)
+
+    def __call__(self, x):
+        """
+
+        """
+        for model in self.models:
+            x = model(x)
+        return x
+
+    def __getitem__(self, index):
+        return self.models[index]
+
+    def append(self, x) -> None:
+        self.models = Models(*self.models, x).models
+
+    def __repr__(self):
+        return f"Models({self.models})"
+
 
 class Linear(Model):
     """
     The linear model.
     """
-    def __init__(self, in_size, out_size, needs_bias: bool = True):
+    def __init__(self, inp_size, out_size, needs_bias: bool = True):
         """
         Specify the input and output size of the linear model. The bias term is optional.
         """
         super().__init__()
-        self.in_size = in_size
+        self.inp_size = inp_size
         self.out_size = out_size
         self.needs_bias = needs_bias
 
-
-        self.weight = Parameter(Tensor([random.random()] * in_size * out_size, (in_size, out_size)))
-
+        self.weight = Parameter(Tensor([random.random()] * inp_size * out_size, (inp_size, out_size)))
         if needs_bias:
             self.bias = Parameter(Tensor([random.random()] * out_size))
         else:
             self.bias = None
 
     def __repr__(self):
-        return f"Linear({self.in_size}, {self.out_size})"
+        return f"Linear({self.inp_size}, {self.out_size}, needs_bias={self.needs_bias})"
 
     def forward(self, x: Tensor) -> Tensor:
         """
         The forward pass of the linear model.
         """
-        if x.shape[-1] != self.in_size:
-            raise ValueError("The size of the last dimension of the input must equal "
+
+        if x.shape[-1] != self.inp_size:
+            raise ValueError("The size of the last dimension of the input must equal to "
                              "the input size of the linear model.")
 
         return x @ self.weight + self.bias
-
-
-
-
-
-
-
-
-
 
 class MLP(Model):
     """
     The multi-layer perceptron which is a stack of linear layers with nonlinear activation functions in between.
     """
-    def __init__(self, d_hidden: int=1, n_hidden: int=1, needs_bias: bool = True):
+    def __init__(self, inp_size, out_size):
         super().__init__()
-        self.in_size = 2
-        self.d_hidden = d_hidden
-        self.out_size = 1
+        self.inp_size = inp_size
+        self.out_size = out_size
 
-        self.in_layer = Linear(2, d_hidden, needs_bias)
-        self.hidden_layers = Models()
-        for i in range(n_hidden):
-            self.hidden_layers.append(Linear(d_hidden, d_hidden, needs_bias))
-        self.out_layer = Linear(d_hidden, 1, needs_bias)
+        self.layers = Models()
+        self.layers.append(Linear(inp_size, 8)) # The input layer
+        for i in range(4):
+            self.layers.append(Linear(8, 8)) # The hidden layers
+        self.layers.append(Linear(8, out_size)) # The output layer
 
     def forward(self, x: list) -> list:
-        out = [o.relu() for o in self.in_layer(x)]
-        out = [o.relu() for o in self.hidden_layers(out)]
+        for layer in self.layers:
+            x = layer(x)
+            x = x.relu()
 
-        return self.out_layer(out)
+        return x
 
