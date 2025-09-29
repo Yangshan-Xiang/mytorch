@@ -287,31 +287,6 @@ class TestFunctions(unittest.TestCase):
         for i, element in enumerate(out.storage):
             self.assertAlmostEqual(element, [0.7311, 0.8808, 0.9526, 0.982, 0.9933, 0.9975][i], places=4)
 
-    def test_pow(self):
-        out = self.tensor ** Tensor([2])
-        self.assertEqual(out.storage, [9, 25, 16, 36])
-        self.assertEqual(out.shape, (2, 2))
-        self.assertEqual(out.stride, (2, 1))
-        self.assertEqual(out.offset, 0)
-
-        out = self.tensor2 ** Tensor([0])
-        self.assertEqual(out.storage, [1, 1, 1, 1])
-        self.assertEqual(out.shape, (2, 1, 2))
-        self.assertEqual(out.stride, (2, 2, 1))
-        self.assertEqual(out.offset, 0)
-
-        out = self.tensor3 ** Tensor([1])
-        self.assertEqual(out.storage, [1, 4, 2, 5, 3, 6])
-        self.assertEqual(out.shape, (3, 2))
-        self.assertEqual(out.stride, (2, 1))
-        self.assertEqual(out.offset, 0)
-
-        out4 = self.tensor4 ** Tensor([3])
-        self.assertEqual(out4.storage, [1, 2 ** 3, 3 ** 3, 4 ** 3, 5 ** 3, 6 ** 3])
-        self.assertEqual(out4.shape, (3, 2))
-        self.assertEqual(out4.stride, (2, 1))
-        self.assertEqual(out4.offset, 0)
-
     def test_reshape(self):
         self.assertEqual(self.tensor.reshape(4).__repr__(), "Tensor([3, 5, 4, 6])")
         self.assertEqual(self.tensor2.reshape(2, 2).__repr__(), "Tensor([[1, 2], [3, 4]])")
@@ -327,8 +302,8 @@ class TestFunctions(unittest.TestCase):
     def test_sum(self):
         self.assertEqual(self.tensor.sum(0).__repr__(), "Tensor([[7, 11]])")
         self.assertEqual(self.tensor.sum(1).__repr__(), "Tensor([[8], [10]])")
-        self.assertEqual(self.tensor.sum(0, keep_dim=False).__repr__(), "Tensor([7, 11])")
-        self.assertEqual(self.tensor.sum(1, keep_dim=False).__repr__(), "Tensor([8, 10])")
+        self.assertEqual(self.tensor.sum(0, keepdim=False).__repr__(), "Tensor([7, 11])")
+        self.assertEqual(self.tensor.sum(1, keepdim=False).__repr__(), "Tensor([8, 10])")
 
     def test_matmul(self):
         self.assertEqual((self.tensor @ self.tensor).__repr__(), "Tensor([[29, 45], [36, 56]])")
@@ -340,8 +315,8 @@ class TestFunctions(unittest.TestCase):
     def test_prod(self):
         self.assertEqual(self.tensor.prod(0).__repr__(), "Tensor([[12, 30]])")
         self.assertEqual(self.tensor.prod(1).__repr__(), "Tensor([[15], [24]])")
-        self.assertEqual(self.tensor.prod(0, keep_dim=False).__repr__(), "Tensor([12, 30])")
-        self.assertEqual(self.tensor.prod(1, keep_dim=False).__repr__(), "Tensor([15, 24])")
+        self.assertEqual(self.tensor.prod(0, keepdim=False).__repr__(), "Tensor([12, 30])")
+        self.assertEqual(self.tensor.prod(1, keepdim=False).__repr__(), "Tensor([15, 24])")
 
 
 

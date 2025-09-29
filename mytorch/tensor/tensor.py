@@ -302,6 +302,8 @@ class Tensor:
         pass
     def __matmul__(self, other):
         pass
+    def max(self):
+        pass
     def softmax(self, dim: int):
         pass
     def sigmoid(self):
@@ -320,9 +322,9 @@ class Tensor:
         pass
     def permute(self, *dims):
         pass
-    def sum(self, dim: int, keep_dim: bool = True):
+    def sum(self, dim: int, keepdim: bool = True):
         pass
-    def prod(self, dim: int, keep_dim: bool = True):
+    def prod(self, dim: int, keepdim: bool = True):
         pass
 
 class Ones(Tensor):

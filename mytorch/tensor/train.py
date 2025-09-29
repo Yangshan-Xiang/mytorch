@@ -53,17 +53,18 @@ def train(model: str, optim: str):
     else:
         raise ValueError(f'Optimizer {optim} is not supported')
 
+    xs, ys = Data(pts).circle()
+    ys = Tensor(ys, (pts, 1))  # (100, 1)
+    xs = [i for x in xs for i in x]
+    xs = Tensor(xs, (pts, 2))  # (100, 2)
+
     for epoch in range(1, epochs + 1):
-        xs, ys = Data(pts).diagonal()
-        ys = Tensor(ys, (pts, 1)) # (100, 1)
-        xs = [i for x in xs for i in x]
-        xs = Tensor(xs, (pts, 2)) # (100, 2)
 
         prob = model(xs).sigmoid() # (100, 2) @ (2, 1) = (100, 1)
         loss = - (ys * prob.log() + (Tensor([1]) - ys) * (Tensor([1]) - prob).log()) # (100, 1)
 
         optimizer.zero_grad()
-        loss.backward()
+        loss.sum(0).backward()
         optimizer.step()
 
         pred = prob > Tensor([0.5]) # (100, 1)
@@ -71,8 +72,8 @@ def train(model: str, optim: str):
         num_correct = correct.sum(0)
 
         if epoch % 10 == 0:
-            print(num_correct / Tensor([pts]))
+            print(f"acc = {(num_correct / 100).storage[0] * 100 :.2f}%, loss = {loss.storage[0] :.4f}")
 
 
 if __name__ == "__main__":
-    train('Linear', 'SGD')
+    train('MLP', 'SGD')

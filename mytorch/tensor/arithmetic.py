@@ -1,6 +1,8 @@
 import itertools
 import math
 
+from torch.nn.init import constant
+
 from mytorch.tensor.tensor import *
 from mytorch.tensor.operations import *
 from mytorch.tensor.utils import *
@@ -118,7 +120,7 @@ def tensor_reduce(func) -> Callable:
     """
 
     """
-    def _reduce(x: Tensor, dim: int, keep_dim: bool = True) -> Tensor:
+    def _reduce(x: Tensor, dim: int, keepdim: bool = True) -> Tensor:
         """
 
         """
@@ -141,7 +143,7 @@ def tensor_reduce(func) -> Callable:
                     out_storage[out_storage_idx] = x_storage[x_storage_idx]
                 else:
                     out_storage[out_storage_idx] = func(out_storage[out_storage_idx], x_storage[x_storage_idx])
-        if keep_dim:
+        if keepdim:
             return Tensor(out_storage, out_shape)
         else:
             if len(out_shape) == 1:
@@ -314,6 +316,23 @@ class Sqrt:
         return (grad / (2 * sqrt_x),)
 
 
+class Max:
+    @staticmethod
+    def forward(x: Tensor, dim: int, keepdim: bool = True) -> Tensor:
+        max_x = tensor_reduce(maximum)(x, dim, keepdim)
+        if x.history:
+            max_x.history = History(Max, (x.constant(), max_x.constant()), (x,))
+        else:
+            pass
+        return max_x
+
+    @staticmethod
+    def backward(cache, grad: Tensor) -> tuple:
+        x, max_x = cache
+        max_x *= Ones(grad.shape)
+
+        return (grad * (max_x == x),)
+
 class Relu:
     @staticmethod
     def forward(x: Tensor) -> Tensor:
@@ -329,13 +348,15 @@ class Relu:
         x = cache
         return (grad * (x > 0),)
 
+
 class Softmax:
     """
 
     """
     @staticmethod
     def forward(x: Tensor, dim: int) -> Tensor:
-        exp_x = tensor_map(exp)(x)
+        max_x = tensor_reduce(max)(x, dim) # Subtract the maximum to improve numerical stability
+        exp_x = tensor_map(exp)(x - max_x)
         sum_exp_x = tensor_reduce(add)(exp_x, dim)
         softmax_x = exp_x / sum_exp_x
         if x.history:
@@ -441,8 +462,8 @@ class Permute:
 
 class Sum:
     @staticmethod
-    def forward(x: Tensor, dim: int, keep_dim: bool = True) -> Tensor:
-        sum_x = tensor_reduce(add)(x, dim, keep_dim)
+    def forward(x: Tensor, dim: int, keepdim: bool = True) -> Tensor:
+        sum_x = tensor_reduce(add)(x, dim, keepdim)
 
         if x.history:
             sum_x.history = History(Sum, (x.shape, dim), (x,))
@@ -464,8 +485,8 @@ class Sum:
 
 class Prod:
     @staticmethod
-    def forward(x: Tensor, dim: int, keep_dim: bool = True) -> Tensor:
-        prod_x = tensor_reduce(mul)(x, dim, keep_dim)
+    def forward(x: Tensor, dim: int, keepdim: bool = True) -> Tensor:
+        prod_x = tensor_reduce(mul)(x, dim, keepdim)
 
         if x.history:
             prod_x.history = History(Prod, (x.constant(), prod_x.constant(), dim), (x,))
@@ -637,7 +658,7 @@ class MatMul:
                         gradient = gradient.sum(dim)
                 if len(grad_shape) != len(shape):
                     for _ in range(len(grad_shape) - len(shape)):
-                        gradient = gradient.sum(0, keep_dim=False)
+                        gradient = gradient.sum(0, keepdim=False)
             return gradient
 
         return align(x_grad, x_shape), align(y_grad, y_shape)
@@ -660,7 +681,7 @@ Tensor.__le__ = lambda x, y: tensor_zip(le)(x, to_tensor(y))
 Tensor.__pow__ = Pow.forward
 Tensor.__rpow__ = lambda x, y: Pow.forward(y, x)
 Tensor.__matmul__ = MatMul.forward
-
+Tensor.max = Max.forward
 Tensor.sum = Sum.forward
 Tensor.prod = Prod.forward
 Tensor.kron = NotImplemented

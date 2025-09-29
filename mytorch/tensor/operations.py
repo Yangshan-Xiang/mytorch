@@ -31,7 +31,10 @@ def relu(x: float) -> float:
     return max(0.0, x)
 
 def sigmoid(x: float) -> float:
-    return 1 / (1 + math.exp(-x))
+    if x >= 0: # For numerical stability
+        return 1 / (1 + math.exp(-x))
+    else:
+        return math.exp(x) / (1 + math.exp(x))
 
 def rcp(x: float) -> float:
     return 1 / (x + eps)
@@ -50,6 +53,9 @@ def lt(x: float, y: float) -> bool:
 
 def le(x: float, y: float) -> bool:
     return x <= y
+
+def maximum(x: float, y: float) -> float:
+    return max(x, y)
 
 
 

@@ -53,10 +53,11 @@ def train(model: str, optim: str):
     else:
         raise ValueError(f'Optimizer {optim} is not supported')
 
+    xs, ys = Data(pts).circle()
     for epoch in range(1, epochs + 1):
         correct = 0
         total_loss = 0
-        xs, ys = Data(pts).circle()
+
 
         for i in range(len(xs)):
             prob = model(xs[i])[0].sigmoid()

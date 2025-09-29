@@ -82,9 +82,11 @@ class Linear(Model):
         self.out_size = out_size
         self.needs_bias = needs_bias
 
-        self.weight = Parameter(Tensor([random.random()] * inp_size * out_size, (inp_size, out_size)))
+        scale = (6 / (inp_size + out_size)) ** 0.5
+        self.weight = Parameter(Tensor([random.uniform(-scale, scale) for _ in range(inp_size * out_size)],
+                                       shape=(inp_size, out_size)))
         if needs_bias:
-            self.bias = Parameter(Tensor([random.random()] * out_size))
+            self.bias = Parameter(Tensor([0.0] * out_size))
         else:
             self.bias = None
 
@@ -108,19 +110,12 @@ class MLP(Model):
     """
     def __init__(self, inp_size, out_size):
         super().__init__()
-        self.inp_size = inp_size
-        self.out_size = out_size
 
-        self.layers = Models()
-        self.layers.append(Linear(inp_size, 8)) # The input layer
-        for i in range(4):
-            self.layers.append(Linear(8, 8)) # The hidden layers
-        self.layers.append(Linear(8, out_size)) # The output layer
+        self.layer1 = Linear(inp_size, 32)
+        self.layer2 = Linear(32, out_size)
 
     def forward(self, x: list) -> list:
-        for layer in self.layers:
-            x = layer(x)
-            x = x.relu()
-
+        x = self.layer1(x).relu()
+        x = self.layer2(x)
         return x
 
