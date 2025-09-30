@@ -13,7 +13,7 @@ def mul(x: float, y: float):
     return x * y
 
 def div(x: float, y: float):
-    return x / (y + eps)
+    return x / (max(y, eps))
 
 def neg(x: float) -> float:
     return -x
@@ -22,22 +22,23 @@ def exp(x: float) -> float:
     return math.exp(x)
 
 def log(x: float) -> float:
-    return math.log(x + eps)
+    return math.log(max(x, eps))
 
 def sqrt(x: float) -> float:
-    return math.sqrt(x + eps)
+    return math.sqrt(max(x, eps))
 
 def relu(x: float) -> float:
     return max(0.0, x)
 
 def sigmoid(x: float) -> float:
     if x >= 0: # For numerical stability
-        return 1 / (1 + math.exp(-x))
+        sigmoid_x = 1 / (1 + math.exp(-x))
     else:
-        return math.exp(x) / (1 + math.exp(x))
+        sigmoid_x = math.exp(x) / (1 + math.exp(x))
+    return max(min(sigmoid_x, 1 - eps), eps)
 
 def rcp(x: float) -> float:
-    return 1 / (x + eps)
+    return 1 / (max(x, eps))
 
 def eq(x: float, y: float) -> bool:
     return x == y

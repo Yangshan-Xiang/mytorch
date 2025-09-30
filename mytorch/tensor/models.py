@@ -111,11 +111,13 @@ class MLP(Model):
     def __init__(self, inp_size, out_size):
         super().__init__()
 
-        self.layer1 = Linear(inp_size, 32)
-        self.layer2 = Linear(32, out_size)
+        self.layer1 = Linear(inp_size, 10)
+        self.layer2 = Linear(10, 10)
+        self.layer3 = Linear(10, out_size)
 
     def forward(self, x: list) -> list:
         x = self.layer1(x).relu()
-        x = self.layer2(x)
+        x = self.layer2(x).relu()
+        x = self.layer3(x)
         return x
 
