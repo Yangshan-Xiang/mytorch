@@ -35,8 +35,7 @@ class Data:
                 ys.append(0)
         return xs, ys
 
-MLP_model = MLP(2, 10, 1)
-linear_model = Linear(2, 1)
+
 def train(model, optim: str):
     pts = 100
     epochs = 500
@@ -90,9 +89,9 @@ def test(model):
 
 
 if __name__ == "__main__":
-    _model = MLP_model
-    train(_model, 'Adagrad')
+    model = MLP(2, 10, 1)
+    train(model, 'Adagrad')
     print('\n')
-    print("Test the trained model on test data:")
-    test(_model)
+    print("test accuracy:")
+    test(model)
 

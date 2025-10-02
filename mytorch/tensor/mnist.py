@@ -22,10 +22,9 @@ def mnist(batch_size: int = 64, train: bool = True, download: bool = True):
 
 
 
-MLP_model = MLP(784, 32, 10, 3)
-def train(model, optim: str):
-    pts = 100
-    epochs = 500
+linear_model = Linear(784, 10)
+def mnist_train(model, optim: str):
+    epochs = 5
     batch_size = 64
 
     if optim == 'Adam':
@@ -55,4 +54,4 @@ def train(model, optim: str):
                   f"loss: {loss.storage[0] :.4f}")
 
 if __name__ == "__main__":
-    train(MLP_model, 'Adagrad')
+    mnist_train(linear_model, 'Adam')
