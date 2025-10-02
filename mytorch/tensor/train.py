@@ -1,8 +1,10 @@
+import random
+from mytorch.tensor.loss import *
 from mytorch.tensor.arithmetic import *
 from mytorch.tensor.models import *
 from mytorch.tensor.optimizers import *
 
-
+random.seed(42)
 class Data:
     def __init__(self, pts: int):
         self.pts = pts
@@ -33,23 +35,18 @@ class Data:
                 ys.append(0)
         return xs, ys
 
-
-def train(model: str, optim: str):
+MLP_model = MLP(2, 10, 1)
+linear_model = Linear(2, 1)
+def train(model, optim: str):
     pts = 100
     epochs = 500
-    if model == 'Linear':
-        model = Linear(2, 1)
-    elif model == 'MLP':
-        model = MLP(2, 1)
-    else:
-        raise ValueError(f'Model {model} is not supported')
 
     if optim == 'Adam':
-        optimizer = Adam(model.get_params(), lr = 0.0001) # Adam optimizer is much better and more stable than SGD optimizer
+        optimizer = Adam(model.get_params(), lr = 0.001) # Adam optimizer is much better and more stable than SGD optimizer
     elif optim == 'Adagrad':
         optimizer = Adagrad(model.get_params(), lr = 0.1)
     elif optim == 'SGD':
-        optimizer = SGD(model.get_params(), lr=0.0001)
+        optimizer = SGD(model.get_params(), lr=0.01)
     else:
         raise ValueError(f'Optimizer {optim} is not supported')
 
@@ -61,20 +58,39 @@ def train(model: str, optim: str):
     for epoch in range(1, epochs + 1):
 
         prob = model(xs).sigmoid() # (100, 2) @ (2, 1) = (100, 1)
-        loss = - (ys * prob.log() + (Tensor([1]) - ys) * (Tensor([1]) - prob).log()) # (100, 1)
 
+        loss = BCELoss('mean')(prob, ys)
         optimizer.zero_grad()
-        loss.sum(0).backward()
+        loss.backward()
         optimizer.step()
 
         pred = prob > Tensor([0.5]) # (100, 1)
         correct = pred == ys # (100, 1)
-        num_correct = correct.sum(0)
+        num_correct = correct.sum(0) # type: ignore
 
         if epoch % 10 == 0:
-            print(f"acc = {(num_correct / 100).storage[0] * 100 :.2f}%, loss = {loss.storage[0] :.4f}")
+            print(f"epoch: {epoch}/{epochs}, acc: {(num_correct / pts).storage[0] * 100 :.2f}%, loss: {loss.storage[0] :.4f}")
+
+def test(model):
+    pts = 100
+    xs, ys = Data(pts).circle()
+    ys = Tensor(ys, (pts, 1))  # (100, 1)
+    xs = [i for x in xs for i in x]
+    xs = Tensor(xs, (pts, 2))  # (100, 2)
+
+    prob = model(xs).sigmoid()  # (100, 2) @ (2, 1) = (100, 1)
+    pred = prob > Tensor([0.5])  # (100, 1)
+    correct = pred == ys  # (100, 1)
+    num_correct = correct.sum(0)  # type: ignore
+    print(f"acc = {(num_correct / pts).storage[0] * 100 :.2f}%")
+
+
 
 
 if __name__ == "__main__":
-    train('MLP', 'Adagrad')
+    _model = MLP_model
+    train(_model, 'Adagrad')
+    print('\n')
+    print("Test the trained model on test data:")
+    test(_model)
 

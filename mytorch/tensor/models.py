@@ -1,3 +1,5 @@
+import math
+
 from mytorch.tensor.tensor import *
 import random
 
@@ -68,56 +70,89 @@ class Models:
     def __repr__(self):
         return f"Models({self.models})"
 
-
 class Linear(Model):
     """
     The linear model.
     """
     def __init__(self, inp_size, out_size, needs_bias: bool = True):
         """
-        Specify the input and output size of the linear model. The bias term is optional.
+        Specify the linear model.
+
+        Args:
+            inp_size (int): The input size.
+            out_size (int): The output size.
+            needs_bias (bool): Whether you need the bias term.
         """
         super().__init__()
+
+        if not isinstance(inp_size, int) or not isinstance(out_size, int):
+            raise TypeError("Input size and output size must be integers.")
         self.inp_size = inp_size
         self.out_size = out_size
         self.needs_bias = needs_bias
 
-        scale = (6 / (inp_size + out_size)) ** 0.5
-        self.weight = Parameter(Tensor([random.uniform(-scale, scale) for _ in range(inp_size * out_size)],
-                                       shape=(inp_size, out_size)))
+        random.seed(42)  # Fix the seed for reproducibility
+        # Uniform Xavier Initialization
+        a = math.sqrt(6 / (inp_size + out_size))
+        self.weight = Parameter(Tensor([random.uniform(-a, a) for _ in range(inp_size * out_size)],
+                                       (inp_size, out_size)))
         if needs_bias:
-            self.bias = Parameter(Tensor([0.0] * out_size))
+            self.bias = Parameter(Tensor([0] * out_size))
         else:
             self.bias = None
 
-    def __repr__(self):
-        return f"Linear({self.inp_size}, {self.out_size}, needs_bias={self.needs_bias})"
-
     def forward(self, x: Tensor) -> Tensor:
         """
-        The forward pass of the linear model.
+        The forward pass which computes the output of the linear model given the input.
         """
 
         if x.shape[-1] != self.inp_size:
             raise ValueError("The size of the last dimension of the input must equal to "
                              "the input size of the linear model.")
 
-        return x @ self.weight + self.bias
+        if self.needs_bias:
+            return x @ self.weight + self.bias
+        else:
+            return x @ self.weight
+
+    def __repr__(self):
+        return f"Linear({self.inp_size}, {self.out_size}, needs_bias={self.needs_bias})"
 
 class MLP(Model):
     """
     The multi-layer perceptron which is a stack of linear layers with nonlinear activation functions in between.
     """
-    def __init__(self, inp_size, out_size):
+
+    def __init__(self, inp_size: int, hid_size: int, out_size: int, n_hid: int = 1, needs_bias: bool = True):
+        """
+        Specify the multi-layer perceptron.
+
+        Args:
+            inp_size (int): The input size.
+            hid_size (int): The hidden size.
+            out_size (int): The output size.
+            n_hid (int): The number of hidden layers.
+            needs_bias (bool): Whether you need the bias term.
+        """
         super().__init__()
 
-        self.layer1 = Linear(inp_size, 10)
-        self.layer2 = Linear(10, 10)
-        self.layer3 = Linear(10, out_size)
+        self.inp_size = inp_size
+        self.out_size = out_size
+        self.hid_size = hid_size
+        self.n_hid = n_hid
+        self.needs_bias = needs_bias
 
-    def forward(self, x: list) -> list:
-        x = self.layer1(x).relu()
-        x = self.layer2(x).relu()
-        x = self.layer3(x)
-        return x
+        self.inp_layer = Linear(inp_size, hid_size, needs_bias)
+        self.hid_layer = Models()
+        for _ in range(n_hid):
+            self.hid_layer.append(Linear(hid_size, hid_size, needs_bias))
+        self.out_layer = Linear(hid_size, out_size, needs_bias)
 
+    def forward(self, x: Tensor) -> Tensor:
+        x = self.inp_layer(x).relu()
+        x = self.hid_layer(x).relu()
+
+        return self.out_layer(x)
+
+    def __repr__(self):
+        return f"MLP({self.inp_size}, {self.out_size}, {self.hid_size}, {self.n_hid}, {self.needs_bias})"
