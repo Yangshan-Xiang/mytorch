@@ -45,11 +45,11 @@ def train(model: str, optim: str):
         raise ValueError(f'Model {model} is not supported')
 
     if optim == 'Adam':
-        optimizer = Adam(model.get_params(), lr = 0.001) # Adam optimizer is much better and more stable than SGD optimizer
+        optimizer = Adam(model.get_params(), lr = 0.0001) # Adam optimizer is much better and more stable than SGD optimizer
     elif optim == 'Adagrad':
         optimizer = Adagrad(model.get_params(), lr = 0.1)
     elif optim == 'SGD':
-        optimizer = SGD(model.get_params(), lr = 0.001)
+        optimizer = SGD(model.get_params(), lr=0.0001)
     else:
         raise ValueError(f'Optimizer {optim} is not supported')
 
@@ -76,5 +76,5 @@ def train(model: str, optim: str):
 
 
 if __name__ == "__main__":
-    train('MLP', 'SGD')
+    train('MLP', 'Adagrad')
 

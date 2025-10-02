@@ -160,6 +160,29 @@ def to_tensor(x: Union[float, int]) -> Tensor:
     else:
         raise TypeError(f"{type(x)} is not supported for computations.")
 
+def align(gradient: Tensor, shape: tuple) -> Tensor:
+    """
+    As we allow for broadcasting during computation, the shape of the output gradient might not
+    match the shape of the respective tensor parameter, so this function is used to align
+    their shape by sum over the broadcast dimensions of the output gradient.
+
+    Args:
+        gradient (Tensor): The gradient of the tensor parameter.
+        shape (tuple): The shape of the tensor parameter which is also the target shape of our gradient.
+
+    Returns:
+        Tensor: The gradient whose shape is aligned.
+    """
+
+    grad_shape = gradient.shape
+    if grad_shape != shape:
+        for dim in range(-1, -len(shape) - 1, -1):
+            if grad_shape[dim] != shape[dim]:
+                gradient = gradient.sum(dim)
+        if len(grad_shape) != len(shape):
+            for _ in range(len(grad_shape) - len(shape)):
+                gradient = gradient.sum(0, keepdim=False)
+    return gradient
 
 class Neg:
     @staticmethod
@@ -192,21 +215,21 @@ class Exp:
         exp_x = cache
         return (exp_x * grad,)
 
-
 class Add:
     @staticmethod
     def forward(x: Tensor, y: Union[Tensor, float, int]) -> Tensor:
         y = to_tensor(y)
         add_x_y = tensor_zip(add)(x, y)
         if x.history or y.history:
-            add_x_y.history = History(Add, (), (x, y))
+            add_x_y.history = History(Add, (x.shape, y.shape), (x, y))
         else:
             pass
         return add_x_y
 
     @staticmethod
     def backward(cache, grad: Tensor) -> tuple:
-        return grad, grad
+        x_shape, y_shape = cache
+        return align(grad, x_shape), align(grad, y_shape)
 
 
 class Sub:
@@ -216,14 +239,15 @@ class Sub:
         y = to_tensor(y)
         sub_x_y = tensor_zip(sub)(x, y)
         if x.history or y.history:
-            sub_x_y.history = History(Sub, (), (x, y))
+            sub_x_y.history = History(Sub, (x.shape, y.shape), (x, y))
         else:
             pass
         return sub_x_y
 
     @staticmethod
     def backward(cache, grad: Tensor) -> tuple:
-        return grad, -grad
+        x_shape, y_shape = cache
+        return align(grad, x_shape), align(-grad, y_shape)
 
 
 class Mul:
@@ -240,8 +264,7 @@ class Mul:
     @staticmethod
     def backward(cache, grad: Tensor) -> tuple:
         x, y = cache
-        return y * grad, x * grad
-
+        return align(y * grad, x.shape), align(x * grad, y.shape)
 
 class Div:
     @staticmethod
@@ -259,7 +282,7 @@ class Div:
     @staticmethod
     def backward(cache, grad: Tensor) -> tuple:
         x, y = cache
-        return grad / y, -grad * x / (y ** 2)
+        return align(grad / y, x.shape), align(-grad * x / (y ** 2), y.shape)
 
 
 class Rcp:
@@ -631,30 +654,6 @@ class MatMul:
             x_grad = Tensor(x_grad.storage, x_grad.shape[:-2] + x_grad.shape[-1:])
         if y_remove:
             y_grad = Tensor(y_grad.storage, y_grad.shape[:-1])
-
-        def align(gradient: Tensor, shape: tuple) -> Tensor:
-            """
-            As we allow for batched matrix multiplication, the shape of the output gradient might not
-            match the shape of the respective tensor parameter, so this function is used to align
-            their shape by sum over the broadcast dimensions of the output gradient.
-
-            Args:
-                gradient (Tensor): The gradient of the tensor parameter.
-                shape (tuple): The shape of the tensor parameter which is also the target shape of our gradient.
-
-            Returns:
-                Tensor: The gradient whose shape is aligned.
-
-            """
-            grad_shape = gradient.shape
-            if grad_shape != shape:
-                for dim in range(-1, -len(shape) - 1, -1):
-                    if grad_shape[dim] != shape[dim]:
-                        gradient = gradient.sum(dim)
-                if len(grad_shape) != len(shape):
-                    for _ in range(len(grad_shape) - len(shape)):
-                        gradient = gradient.sum(0, keepdim=False)
-            return gradient
 
         return align(x_grad, x_shape), align(y_grad, y_shape)
 
