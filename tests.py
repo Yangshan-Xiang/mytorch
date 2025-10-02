@@ -318,6 +318,16 @@ class TestFunctions(unittest.TestCase):
         self.assertEqual(self.tensor.prod(0, keepdim=False).__repr__(), "Tensor([12, 30])")
         self.assertEqual(self.tensor.prod(1, keepdim=False).__repr__(), "Tensor([15, 24])")
 
+    def test_max(self):
+        self.assertEqual(self.tensor.max(0)[0].__repr__(), "Tensor([[4, 6]])")
+        self.assertEqual(self.tensor.max(0)[1].__repr__(), "Tensor([[1, 1]])")
+        self.assertEqual(self.tensor.max(0, keepdim=False)[0].__repr__(), "Tensor([4, 6])")
+        self.assertEqual(self.tensor.max(0, keepdim=False)[1].__repr__(), "Tensor([1, 1])")
+        self.assertEqual(self.tensor2.max(0)[0].__repr__(), "Tensor([[[3, 4]]])")
+        self.assertEqual(self.tensor2.max(0)[1].__repr__(), "Tensor([[[1, 1]]])")
+
+
+
 
 
 if __name__ == '__main__':
