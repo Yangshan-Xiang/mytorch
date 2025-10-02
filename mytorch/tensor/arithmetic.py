@@ -115,7 +115,8 @@ def tensor_reduce(func) -> Callable:
     """
 
     """
-    def _reduce(x: Tensor, dim: int, keepdim: bool = True) -> Tensor:
+
+    def _reduce(x: Tensor, dim: int, keepdim: bool = True) -> Union[Tensor, tuple]:
         """
 
         """
@@ -127,6 +128,10 @@ def tensor_reduce(func) -> Callable:
         out_shape = tuple(out_shape)
         num = math.prod(out_shape)
         out_storage = [None] * num
+        # When it returns the maximum value of a given dimension, we want to return
+        # their indices within that dimension as well
+        indices_storage = [None] * num
+
         for out_storage_idx in range(num):
             out_tensor_idx = to_tensor_idx(out_storage_idx, out_shape)
             for i in range(x_shape[dim]):
@@ -138,13 +143,32 @@ def tensor_reduce(func) -> Callable:
                     out_storage[out_storage_idx] = x_storage[x_storage_idx]
                 else:
                     out_storage[out_storage_idx] = func(out_storage[out_storage_idx], x_storage[x_storage_idx])
+                if func == maximum:
+                    if out_storage[out_storage_idx] == x_storage[x_storage_idx]:
+                        indices_storage[out_storage_idx] = i # type: ignore
+                    else:
+                        pass
+                else:
+                    pass
         if keepdim:
-            return Tensor(out_storage, out_shape)
+            if func == maximum:
+                return (Tensor(out_storage, out_shape),
+                        Tensor(indices_storage, out_shape))
+            else:
+                return Tensor(out_storage, out_shape)
         else:
             if len(out_shape) == 1:
-                return Tensor(out_storage, out_shape)
+                if func == maximum:
+                    return (Tensor(out_storage, out_shape),
+                            Tensor(indices_storage, out_shape))
+                else:
+                    return Tensor(out_storage, out_shape)
             else:
-                return Tensor(out_storage, out_shape[:dim] + out_shape[dim + 1:])
+                if func == maximum:
+                    return (Tensor(out_storage, out_shape[:dim] + out_shape[dim + 1:]),
+                            Tensor(indices_storage, out_shape[:dim] + out_shape[dim + 1:]))
+                else:
+                    return Tensor(out_storage, out_shape[:dim] + out_shape[dim + 1:])
 
     return _reduce
 
@@ -336,13 +360,13 @@ class Sqrt:
 
 class Max:
     @staticmethod
-    def forward(x: Tensor, dim: int, keepdim: bool = True) -> Tensor:
-        max_x = tensor_reduce(maximum)(x, dim, keepdim)
+    def forward(x: Tensor, dim: int, keepdim: bool = True) -> tuple:
+        max_x, indices = tensor_reduce(maximum)(x, dim, keepdim)
         if x.history:
             max_x.history = History(Max, (x.constant(), max_x.constant()), (x,))
         else:
             pass
-        return max_x
+        return max_x, indices
 
     @staticmethod
     def backward(cache, grad: Tensor) -> tuple:

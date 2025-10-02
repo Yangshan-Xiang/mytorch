@@ -69,7 +69,9 @@ def train(model, optim: str):
         num_correct = correct.sum(0) # type: ignore
 
         if epoch % 10 == 0:
-            print(f"epoch: {epoch}/{epochs}, acc: {(num_correct / pts).storage[0] * 100 :.2f}%, loss: {loss.storage[0] :.4f}")
+            print(f"epoch: {epoch}/{epochs}, "
+                  f"acc: {(num_correct / pts).storage[0] * 100 :.2f}%, "
+                  f"loss: {loss.storage[0] :.4f}")
 
 def test(model):
     pts = 100
