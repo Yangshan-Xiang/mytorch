@@ -712,6 +712,8 @@ class FastMatMul:
     @staticmethod
     def backward(cache, grad: Tensor) -> tuple:
         x_ndarray, y_ndarray = cache
+        x_shape = x_ndarray.shape
+        y_shape = y_ndarray.shape
 
         if not grad.is_contiguous():
             grad.to_contiguous()
@@ -719,13 +721,18 @@ class FastMatMul:
         grad_storage, grad_shape, _, grad_offset = grad.core()
         grad_ndarray = array(grad_storage[grad_offset:]).reshape(grad_shape)
 
-        x_grad_ndarray = grad_ndarray @ y_ndarray.T
-        y_grad_ndarray = x_ndarray.T @ grad_ndarray
+        y_axes = list(range(y_ndarray.ndim))
+        y_axes[-2], y_axes[-1] = y_axes[-1], y_axes[-2]
+        x_grad_ndarray = grad_ndarray @ y_ndarray.transpose(y_axes)
+
+        x_axes = list(range(x_ndarray.ndim))
+        x_axes[-2], x_axes[-1] = x_axes[-1], x_axes[-2]
+        y_grad_ndarray = x_ndarray.transpose(x_axes) @ grad_ndarray
 
         x_grad = Tensor(x_grad_ndarray.flatten().tolist(), x_grad_ndarray.shape)
         y_grad = Tensor(y_grad_ndarray.flatten().tolist(), y_grad_ndarray.shape)
 
-        return x_grad, y_grad
+        return align(x_grad, x_shape), align(y_grad, y_shape)
 
 
 class Conv2d:
