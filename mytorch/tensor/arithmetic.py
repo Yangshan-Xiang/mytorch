@@ -3,7 +3,7 @@ from mytorch.tensor.operations import *
 from mytorch.tensor.utils import *
 from typing import Callable
 
-from numpy import array, matmul # For faster matrix multiplication
+from numpy import array # For faster matrix multiplication
 
 def tensor_map(func) -> Callable:
     """
@@ -728,6 +728,88 @@ class FastMatMul:
         return x_grad, y_grad
 
 
+class Conv2d:
+    """
+
+    """
+    @staticmethod
+    def forward(x: Tensor, k: Tensor, stride: Union[int, tuple] = 1, padding: Union[int, tuple] = 0) -> Tensor:
+        if not isinstance(k, Tensor):
+            raise TypeError(f"Expected Tensor, got {type(k).__name__} instead.")
+        x_storage, x_shape, x_stride, x_offset = x.core()
+        k_storage, k_shape, k_stride, k_offset = k.core()
+
+        batch_size, inp_channels, h, w = x_shape
+        out_channel, inp_channels_, kh, kw = k_shape
+
+        if inp_channels != inp_channels_:
+            raise ValueError(f"Mismatch in the number of input channels, got {inp_channels} and {inp_channels_}.")
+        if kh > h or kw > w:
+            raise ValueError("Invalid kernel shape")
+
+        if isinstance(padding, int):
+            padding = (padding, padding)
+        if isinstance(stride, int):
+            stride = (stride, stride)
+        if padding[0] < 0 or padding[1] < 0:
+            raise ValueError(f"Padding must be non-negative, got {padding} instead.")
+        if stride[0] <= 0 or stride[1] <= 0:
+            raise ValueError(f"Stride must be positive, got {stride} instead.")
+
+        if padding != (0, 0):
+            x_padded_shape = (batch_size, inp_channels, h + padding[0] * 2, w + padding[1] * 2)
+            num = math.prod(x_padded_shape)
+            x_padded_storage = [0] * num
+            for x_padded_storage_idx in range(num):
+                x_padded_tensor_idx = to_tensor_idx(x_padded_storage_idx, x_padded_shape)
+                if (padding[1] <= x_padded_tensor_idx[-1] <= w - 1 + padding[1] and
+                        padding[0] <= x_padded_tensor_idx[-2] <= h - 1 + padding[0]):
+                    x_tensor_idx = list(x_padded_tensor_idx)
+                    x_tensor_idx[-1] -= padding[1]
+                    x_tensor_idx[-2] -= padding[0]
+                    x_tensor_idx = tuple(x_tensor_idx)
+                    x_storage_idx = to_storage_idx(x_tensor_idx, x_stride, x_offset)
+                    x_padded_storage[x_padded_storage_idx] = x_storage[x_storage_idx]
+            x_padded = Tensor(x_padded_storage, x_padded_shape)
+        else:
+            x_padded = x
+
+        x_padded_storage, x_padded_shape, x_padded_stride, x_padded_offset = x_padded.core()
+        out_h = ((h - kh + padding[0] * 2) // stride[0]) + 1
+        out_w = ((w - kw + padding[1] * 2) // stride[1]) + 1
+
+        # Here we use Im2Col algorithm to change convolution into matrix multiplication.
+        # So we first have to construct the new input and kernel
+        x_new_shape = (batch_size, out_h, out_w, inp_channels * kh * kw)
+        num = math.prod(x_new_shape)
+        x_new_storage = [0] * num
+        for x_new_storage_idx in range(num):
+            x_new_tensor_idx = to_tensor_idx(x_new_storage_idx, x_new_shape)
+            part_idx = list(to_tensor_idx(x_new_tensor_idx[-1], (inp_channels, kh, kw)))
+            part_idx[1] += x_new_tensor_idx[1] * stride[0]
+            part_idx[2] += x_new_tensor_idx[2] * stride[1]
+            part_idx = tuple(part_idx)
+            x_padded_tensor_idx = (x_new_tensor_idx[0],) + part_idx
+            x_padded_storage_idx = to_storage_idx(x_padded_tensor_idx, x_padded_stride, x_padded_offset)
+            x_new_storage[x_new_storage_idx] = x_padded_storage[x_padded_storage_idx]
+        x_new = Tensor(x_new_storage, x_new_shape)
+        k_new = k.reshape(out_channel, inp_channels * kh * kw).permute(1, 0)
+        out = x_new @ k_new
+        return out.permute(0, 3, 1, 2)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 Tensor.__neg__ = Neg.forward
 Tensor.__add__ = Add.forward
 Tensor.__radd__ = Add.forward
@@ -745,6 +827,7 @@ Tensor.__le__ = lambda x, y: tensor_zip(le)(x, to_tensor(y))
 Tensor.__pow__ = Pow.forward
 Tensor.__rpow__ = lambda x, y: Pow.forward(y, x)
 Tensor.__matmul__ = FastMatMul.forward
+Tensor.conv2d = Conv2d.forward
 Tensor.max = Max.forward
 Tensor.sum = Sum.forward
 Tensor.prod = Prod.forward

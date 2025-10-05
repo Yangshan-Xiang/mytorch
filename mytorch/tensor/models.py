@@ -162,20 +162,25 @@ class Conv(Model):
     The convolutional layer.
     """
     def __init__(self, inp_channels: int, out_channels: int,
-                 kernel_shape: tuple, stride: int = 1, padding: int = 0, needs_bias: bool = True):
+                 kernel_size: int, stride: int = 1, padding: int = 0):
         self.inp_channels = inp_channels
         self.out_channels = out_channels
-        self.kernel_size = kernel_shape
+        self.kernel_size = kernel_size
         self.stride = stride
         self.padding = padding
-        self.needs_bias = needs_bias
 
         random.seed(42)
-        n_inp = inp_channels * math.prod(kernel_shape) # Number of inputs
+        n_inp = out_channels * inp_channels * kernel_size * kernel_size
         a = (6 / n_inp) ** 0.5
-        self.kernel = Parameter(Tensor([random.uniform(-a, a) for _ in range(n_inp)],
-                                       shape = (inp_channels, *kernel_shape)))
-        self.bias = Parameter(Tensor([0] * out_channels))
+        self.weight = Parameter(Tensor([random.uniform(-a, a) for _ in range(n_inp)],
+                                       shape = (out_channels, inp_channels, kernel_size, kernel_size)))
 
     def forward(self, x: Tensor) -> Tensor:
         pass
+
+
+
+
+
+
+

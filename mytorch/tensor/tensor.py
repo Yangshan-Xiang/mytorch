@@ -302,6 +302,8 @@ class Tensor:
         pass
     def __matmul__(self, other):
         pass
+    def conv2d(self, other):
+        pass
     def max(self, dim: int, keepdim: bool = True):
         pass
     def softmax(self, dim: int):
