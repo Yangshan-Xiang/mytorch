@@ -1,5 +1,5 @@
-from torchvision import datasets
-from torchvision.transforms import ToTensor
+from torchvision import datasets, transforms
+
 from torch.utils.data import DataLoader
 from mytorch.tensor.tensor import *
 import random
@@ -10,7 +10,7 @@ from mytorch.tensor.optimizers import *
 
 
 def mnist(batch_size: int = 64, train: bool = True, download: bool = True):
-    dataset = datasets.MNIST(root='./data', train=train, download=download, transform=ToTensor())
+    dataset = datasets.MNIST(root='./data', train=train, download=download, transform=transforms.ToTensor())
     dataloader = DataLoader(dataset, batch_size=batch_size)
 
     batched = []
@@ -54,4 +54,4 @@ def mnist_train(model, optim: str):
                   f"loss: {loss.storage[0] :.4f}")
 
 if __name__ == "__main__":
-    mnist_train(linear_model, 'Adam')
+    mnist_train(linear_model, 'Adagrad')

@@ -2,6 +2,8 @@
 data/
 Play.ipynb
 BackUp.ipynb
+Conv.ipynb
+im2col.ipynb
 
 
 # Logs and databases #

@@ -3,6 +3,8 @@ from mytorch.tensor.operations import *
 from mytorch.tensor.utils import *
 from typing import Callable
 
+from numpy import array, matmul # For faster matrix multiplication
+
 def tensor_map(func) -> Callable:
     """
     A higher-order function which turns a float-to-float function into
@@ -449,7 +451,7 @@ class Pow:
     @staticmethod
     def backward(cache, grad: Tensor) -> tuple:
         x, y = cache
-        return grad * y * x ** (y - 1), x.log() * x ** y
+        return align(grad * y * x ** (y - 1), x.shape), align(x.log() * x ** y, y.shape)
 
 class Reshape:
     @staticmethod
@@ -682,6 +684,50 @@ class MatMul:
         return align(x_grad, x_shape), align(y_grad, y_shape)
 
 
+
+class FastMatMul:
+    @staticmethod
+    def forward(x: Tensor, y: Tensor) -> Tensor:
+        if not isinstance(y, Tensor):
+            raise TypeError(f"Expected Tensor, got {type(y).__name__} instead.")
+        if not x.is_contiguous(): # Only storage in contiguous layout can use numpy reshape
+            x.to_contiguous()
+        if not y.is_contiguous():
+            y.to_contiguous()
+
+        x_storage, x_shape, _, x_offset = x.core()
+        y_storage, y_shape, _, y_offset = y.core()
+
+        x_ndarray = array(x_storage[x_offset:]).reshape(x_shape)
+        y_ndarray = array(y_storage[y_offset:]).reshape(y_shape)
+
+        out_ndarray = x_ndarray @ y_ndarray
+        out = Tensor(out_ndarray.flatten().tolist(), out_ndarray.shape)
+
+        if x.history or y.history:
+            out.history = History(FastMatMul, (x_ndarray, y_ndarray), (x, y))
+
+        return out
+
+    @staticmethod
+    def backward(cache, grad: Tensor) -> tuple:
+        x_ndarray, y_ndarray = cache
+
+        if not grad.is_contiguous():
+            grad.to_contiguous()
+
+        grad_storage, grad_shape, _, grad_offset = grad.core()
+        grad_ndarray = array(grad_storage[grad_offset:]).reshape(grad_shape)
+
+        x_grad_ndarray = grad_ndarray @ y_ndarray.T
+        y_grad_ndarray = x_ndarray.T @ grad_ndarray
+
+        x_grad = Tensor(x_grad_ndarray.flatten().tolist(), x_grad_ndarray.shape)
+        y_grad = Tensor(y_grad_ndarray.flatten().tolist(), y_grad_ndarray.shape)
+
+        return x_grad, y_grad
+
+
 Tensor.__neg__ = Neg.forward
 Tensor.__add__ = Add.forward
 Tensor.__radd__ = Add.forward
@@ -698,7 +744,7 @@ Tensor.__ge__ = lambda x, y: tensor_zip(ge)(x, to_tensor(y))
 Tensor.__le__ = lambda x, y: tensor_zip(le)(x, to_tensor(y))
 Tensor.__pow__ = Pow.forward
 Tensor.__rpow__ = lambda x, y: Pow.forward(y, x)
-Tensor.__matmul__ = MatMul.forward
+Tensor.__matmul__ = FastMatMul.forward
 Tensor.max = Max.forward
 Tensor.sum = Sum.forward
 Tensor.prod = Prod.forward

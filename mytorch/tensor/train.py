@@ -38,7 +38,7 @@ class Data:
 
 def train(model, optim: str):
     pts = 100
-    epochs = 500
+    epochs = 100
 
     if optim == 'Adam':
         optimizer = Adam(model.get_params(), lr = 0.001) # Adam optimizer is much better and more stable than SGD optimizer

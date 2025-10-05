@@ -92,10 +92,10 @@ class Linear(Model):
         self.needs_bias = needs_bias
 
         random.seed(42)  # Fix the seed for reproducibility
-        # Uniform Xavier Initialization
-        a = math.sqrt(6 / (inp_size + out_size))
+        # Uniform Kaiming Initialization
+        a = (6 / inp_size) ** 0.5
         self.weight = Parameter(Tensor([random.uniform(-a, a) for _ in range(inp_size * out_size)],
-                                       (inp_size, out_size)))
+                                       shape = (inp_size, out_size)))
         if needs_bias:
             self.bias = Parameter(Tensor([0] * out_size))
         else:
@@ -156,3 +156,26 @@ class MLP(Model):
 
     def __repr__(self):
         return f"MLP({self.inp_size}, {self.out_size}, {self.hid_size}, {self.n_hid}, {self.needs_bias})"
+
+class Conv(Model):
+    """
+    The convolutional layer.
+    """
+    def __init__(self, inp_channels: int, out_channels: int,
+                 kernel_shape: tuple, stride: int = 1, padding: int = 0, needs_bias: bool = True):
+        self.inp_channels = inp_channels
+        self.out_channels = out_channels
+        self.kernel_size = kernel_shape
+        self.stride = stride
+        self.padding = padding
+        self.needs_bias = needs_bias
+
+        random.seed(42)
+        n_inp = inp_channels * math.prod(kernel_shape) # Number of inputs
+        a = (6 / n_inp) ** 0.5
+        self.kernel = Parameter(Tensor([random.uniform(-a, a) for _ in range(n_inp)],
+                                       shape = (inp_channels, *kernel_shape)))
+        self.bias = Parameter(Tensor([0] * out_channels))
+
+    def forward(self, x: Tensor) -> Tensor:
+        pass
