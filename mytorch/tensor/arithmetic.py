@@ -740,7 +740,23 @@ class Conv2d:
 
     """
     @staticmethod
-    def forward(x: Tensor, k: Tensor, stride: Union[int, tuple] = 1, padding: Union[int, tuple] = 0) -> Tensor:
+    def forward(x: Tensor,
+                k: Tensor,
+                stride: Union[int, tuple] = 1,
+                padding: Union[int, tuple] = 0,
+                dilation: Union[int, tuple] = 1) -> Tensor:
+        """
+
+        Args:
+            x:
+            k:
+            stride:
+            padding:
+            dilation:
+
+        Returns:
+
+        """
         if not isinstance(k, Tensor):
             raise TypeError(f"Expected Tensor, got {type(k).__name__} instead.")
         x_storage, x_shape, x_stride, x_offset = x.core()
@@ -758,10 +774,15 @@ class Conv2d:
             padding = (padding, padding)
         if isinstance(stride, int):
             stride = (stride, stride)
+        if isinstance(dilation, int):
+            dilation = (dilation, dilation)
+
         if padding[0] < 0 or padding[1] < 0:
             raise ValueError(f"Padding must be non-negative, got {padding} instead.")
         if stride[0] <= 0 or stride[1] <= 0:
             raise ValueError(f"Stride must be positive, got {stride} instead.")
+        if dilation[0] <= 0 or dilation[1] <= 0:
+            raise ValueError(f"Dilation must be positive, got {dilation} instead.")
 
         if padding != (0, 0):
             x_padded_shape = (batch_size, inp_channels, h + padding[0] * 2, w + padding[1] * 2)
@@ -781,18 +802,37 @@ class Conv2d:
         else:
             x_padded = x
 
-        x_padded_storage, x_padded_shape, x_padded_stride, x_padded_offset = x_padded.core()
-        out_h = ((h - kh + padding[0] * 2) // stride[0]) + 1
-        out_w = ((w - kw + padding[1] * 2) // stride[1]) + 1
+        if dilation != (1, 1):
+            k_dilated_shape = (out_channel, inp_channels, dilation[0] * (kh - 1) + 1, dilation[1] * (kw - 1) + 1)
+            num = math.prod(k_dilated_shape)
+            k_dilated_storage = [0] * num
+            for k_dilated_storage_idx in range(num):
+                k_dilated_tensor_idx = to_tensor_idx(k_dilated_storage_idx, k_dilated_shape)
+                if k_dilated_tensor_idx[-1] % dilation[-1] == 0 and k_dilated_tensor_idx[-2] % dilation[-2] == 0:
+                    k_tensor_idx = list(k_dilated_tensor_idx)
+                    k_tensor_idx[-1] //= dilation[-1] # Use '//' because index has to be integer
+                    k_tensor_idx[-2] //= dilation[-2]
+                    k_tensor_idx = tuple(k_tensor_idx)
+                    k_storage_idx = to_storage_idx(k_tensor_idx, k_stride, k_offset)
+                    k_dilated_storage[k_dilated_storage_idx] = k_storage[k_storage_idx]
+            k_dilated = Tensor(k_dilated_storage, k_dilated_shape)
+        else:
+            k_dilated = k
+
+        x_padded_storage, _, x_padded_stride, x_padded_offset = x_padded.core()
+        _, _, dkh, dkw = k_dilated.shape
+        # The shape of the output
+        out_h = ((h + 2 * padding[0] - dilation[0] * (kh - 1) - 1) // stride[0]) + 1
+        out_w = ((w + 2 * padding[1] - dilation[1] * (kw - 1) - 1) // stride[1]) + 1
 
         # Here we use Im2Col algorithm to change convolution into matrix multiplication.
         # So we first have to construct the new input and kernel
-        x_new_shape = (batch_size, out_h, out_w, inp_channels * kh * kw)
+        x_new_shape = (batch_size, out_h, out_w, inp_channels * dkh * dkw) # The shape of the 'flattened' input
         num = math.prod(x_new_shape)
         x_new_storage = [0] * num
         for x_new_storage_idx in range(num):
             x_new_tensor_idx = to_tensor_idx(x_new_storage_idx, x_new_shape)
-            part_idx = list(to_tensor_idx(x_new_tensor_idx[-1], (inp_channels, kh, kw)))
+            part_idx = list(to_tensor_idx(x_new_tensor_idx[-1], (inp_channels, dkh, dkw)))
             part_idx[1] += x_new_tensor_idx[1] * stride[0]
             part_idx[2] += x_new_tensor_idx[2] * stride[1]
             part_idx = tuple(part_idx)
@@ -800,9 +840,19 @@ class Conv2d:
             x_padded_storage_idx = to_storage_idx(x_padded_tensor_idx, x_padded_stride, x_padded_offset)
             x_new_storage[x_new_storage_idx] = x_padded_storage[x_padded_storage_idx]
         x_new = Tensor(x_new_storage, x_new_shape)
-        k_new = k.reshape(out_channel, inp_channels * kh * kw).permute(1, 0)
-        out = x_new @ k_new
-        return out.permute(0, 3, 1, 2)
+        # Also need to reshape the dilated kernel
+        k_new = k_dilated.reshape(out_channel, inp_channels * dkh * dkw).permute(1, 0)
+        out = x_new @ k_new # Then we can apply matrix multiplication between the new input and kernel
+        if x.history or k.history:
+            out.history = History(Conv2d, (x.constant(), k.constant(), stride, padding), (x, k))
+
+        return out.permute(0, 3, 1, 2) # Change its shape back to how it should be
+
+    @staticmethod
+    def backward(cache, grad: Tensor) -> tuple:
+        x, k, stride, padding = cache
+        pass
+
 
 
 
