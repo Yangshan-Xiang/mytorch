@@ -844,27 +844,42 @@ class Conv2d:
         k_new = k_dilated.reshape(out_channel, inp_channels * dkh * dkw).permute(1, 0)
         out = x_new @ k_new # Then we can apply matrix multiplication between the new input and kernel
         if x.history or k.history:
-            out.history = History(Conv2d, (x.constant(), k.constant(), stride, padding), (x, k))
+            out.history = History(Conv2d, (x_padded, k_dilated, stride, padding, dilation), (x, k))
 
         return out.permute(0, 3, 1, 2) # Change its shape back to how it should be
 
     @staticmethod
     def backward(cache, grad: Tensor) -> tuple:
-        x, k, stride, padding = cache
-        pass
+        x_padded, k_dilated, stride, padding, dilation = cache
 
+        k_grad = Conv2d.forward(x_padded.permute(1, 0, 2, 3),
+                                grad.permute(1, 0, 2, 3),
+                                stride=dilation,
+                                padding=0,
+                                dilation=stride).permute(1, 0, 2, 3)
 
+        # When computing the gradient w.r.t. the input, we first need to rotate the gradient
+        grad_storage, grad_shape, grad_stride, grad_offset = grad.core()
+        grad_r_shape = grad_shape
+        num = math.prod(grad_r_shape)
+        grad_r_storage = [0] * num
+        for grad_r_storage_idx in range(num):
+            grad_r_tensor_idx = to_tensor_idx(grad_r_storage_idx, grad_r_shape)
+            grad_tensor_idx = list(grad_r_tensor_idx)
+            grad_tensor_idx[-1] = grad_shape[-1] - 1 - grad_r_tensor_idx[-1]
+            grad_tensor_idx[-2] = grad_shape[-2] - 1 - grad_r_tensor_idx[-2]
+            grad_tensor_idx = tuple(grad_tensor_idx)
+            grad_storage_idx = to_storage_idx(grad_tensor_idx, grad_stride, grad_offset)
+            grad_r_storage[grad_r_storage_idx] = grad_storage[grad_storage_idx]
+        grad_r = Tensor(grad_r_storage, grad_r_shape)
 
+        x_grad = Conv2d.forward(k_dilated.permute(1, 0, 2, 3),
+                                grad_r,
+                                stride=1,
+                                padding=(grad.shape[-2] - 1 - padding[-2], grad.shape[-1] - 1 - padding[-1]),
+                                dilation=stride).permute(1, 0, 2, 3)
 
-
-
-
-
-
-
-
-
-
+        return x_grad, k_grad
 
 
 Tensor.__neg__ = Neg.forward
