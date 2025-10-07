@@ -767,8 +767,6 @@ class Conv2d:
 
         if inp_channels != inp_channels_:
             raise ValueError(f"Mismatch in the number of input channels, got {inp_channels} and {inp_channels_}.")
-        if kh > h or kw > w:
-            raise ValueError("Invalid kernel shape")
 
         if isinstance(padding, int):
             padding = (padding, padding)
@@ -777,6 +775,8 @@ class Conv2d:
         if isinstance(dilation, int):
             dilation = (dilation, dilation)
 
+        if kh > h + 2 * padding[0] or kw > w + 2 * padding[1]:
+            raise ValueError("Invalid kernel shape")
         if padding[0] < 0 or padding[1] < 0:
             raise ValueError(f"Padding must be non-negative, got {padding} instead.")
         if stride[0] <= 0 or stride[1] <= 0:
@@ -843,10 +843,11 @@ class Conv2d:
         # Also need to reshape the dilated kernel
         k_new = k_dilated.reshape(out_channel, inp_channels * dkh * dkw).permute(1, 0)
         out = x_new @ k_new # Then we can apply matrix multiplication between the new input and kernel
+        out = out.permute(0, 3, 1, 2) # Change its shape back to how it should be
         if x.history or k.history:
-            out.history = History(Conv2d, (x_padded, k_dilated, stride, padding, dilation), (x, k))
+            out.history = History(Conv2d, (x_padded.constant(), k_dilated.constant(), stride, padding, dilation), (x, k))
 
-        return out.permute(0, 3, 1, 2) # Change its shape back to how it should be
+        return out
 
     @staticmethod
     def backward(cache, grad: Tensor) -> tuple:
