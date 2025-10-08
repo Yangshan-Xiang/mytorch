@@ -775,14 +775,17 @@ class Conv2d:
         if isinstance(dilation, int):
             dilation = (dilation, dilation)
 
-        if kh > h + 2 * padding[0] or kw > w + 2 * padding[1]:
-            raise ValueError("Invalid kernel shape")
         if padding[0] < 0 or padding[1] < 0:
             raise ValueError(f"Padding must be non-negative, got {padding} instead.")
         if stride[0] <= 0 or stride[1] <= 0:
             raise ValueError(f"Stride must be positive, got {stride} instead.")
         if dilation[0] <= 0 or dilation[1] <= 0:
             raise ValueError(f"Dilation must be positive, got {dilation} instead.")
+        if dilation[0] * (kh - 1) + 1 > h + 2 * padding[0] or dilation[1] * (kw - 1) + 1 > w + 2 * padding[1]:
+            raise ValueError("The (dilated) kernel shape is larger than the (padded) input shape")
+        if ((h + 2 * padding[0] - (dilation[0] * (kh - 1) + 1)) % stride[0] != 0
+                or (w + 2 * padding[1] - (dilation[1] * (kw - 1) + 1)) % stride[1] != 0):
+            raise ValueError("The Shape of the (padded) input should be divisible by the shape of the (dilated) kernel given the stride.")
 
         if padding != (0, 0):
             x_padded_shape = (batch_size, inp_channels, h + padding[0] * 2, w + padding[1] * 2)
@@ -845,7 +848,8 @@ class Conv2d:
         out = x_new @ k_new # Then we can apply matrix multiplication between the new input and kernel
         out = out.permute(0, 3, 1, 2) # Change its shape back to how it should be
         if x.history or k.history:
-            out.history = History(Conv2d, (x_padded.constant(), k_dilated.constant(), stride, padding, dilation), (x, k))
+            out.history = History(Conv2d, (x_padded.constant(), k_dilated.constant(),
+                                           stride, padding, dilation), (x, k))
 
         return out
 
@@ -877,7 +881,7 @@ class Conv2d:
         x_grad = Conv2d.forward(k_dilated.permute(1, 0, 2, 3),
                                 grad_r,
                                 stride=1,
-                                padding=(grad.shape[-2] - 1 - padding[-2], grad.shape[-1] - 1 - padding[-1]),
+                                padding=(stride[0] * (grad_shape[-2] - 1) - padding[-2], stride[1] * (grad_shape[-1] - 1) - padding[-1]),
                                 dilation=stride).permute(1, 0, 2, 3)
 
         return x_grad, k_grad
