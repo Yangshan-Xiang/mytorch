@@ -1,5 +1,4 @@
 import math
-
 from mytorch.tensor.tensor import *
 import random
 
@@ -157,30 +156,39 @@ class MLP(Model):
     def __repr__(self):
         return f"MLP({self.inp_size}, {self.out_size}, {self.hid_size}, {self.n_hid}, {self.needs_bias})"
 
-class Conv(Model):
+class Conv2d(Model):
     """
     The convolutional layer.
     """
-    def __init__(self, inp_channels: int, out_channels: int,
-                 kernel_size: int, stride: int = 1, padding: int = 0):
+    def __init__(self, inp_channels: int,
+                 out_channels: int,
+                 kernel_shape: Union[int, tuple],
+                 stride: Union[int, tuple] = 1,
+                 padding: Union[int, tuple] = 0,
+                 dilation: Union[int, tuple] = 1):
+        if not isinstance(inp_channels, int) or not isinstance(out_channels, int):
+            raise TypeError("The number of input channels and output channels must be integers.")
+        if inp_channels <= 0 or out_channels <= 0:
+            raise ValueError("The number of input channels and output channels must be positive.")
+        if not isinstance(kernel_shape, (int, tuple)):
+            raise TypeError("The kernel shape must be an integer or a tuple.")
+
         self.inp_channels = inp_channels
         self.out_channels = out_channels
-        self.kernel_size = kernel_size
+        if isinstance(kernel_shape, int):
+            kernel_shape = (kernel_shape, kernel_shape)
+        self.kernel_shape = kernel_shape
         self.stride = stride
         self.padding = padding
+        self.dilation = dilation
 
         random.seed(42)
-        n_inp = out_channels * inp_channels * kernel_size * kernel_size
+        n_inp = out_channels * inp_channels * math.prod(kernel_shape)
         a = (6 / n_inp) ** 0.5
         self.weight = Parameter(Tensor([random.uniform(-a, a) for _ in range(n_inp)],
-                                       shape = (out_channels, inp_channels, kernel_size, kernel_size)))
+                                       shape = (out_channels, inp_channels, kernel_shape[0], kernel_shape[1])))
 
     def forward(self, x: Tensor) -> Tensor:
-        pass
-
-
-
-
-
-
-
+        if x.shape[-3] != self.inp_channels:
+            raise ValueError("The number of the input channels doesn't match.")
+        return x.conv2d(self.weight, self.stride, self.padding, self.dilation)

@@ -462,7 +462,7 @@ class Reshape:
             pass
         x_shape = x.shape
         if math.prod(x_shape) != math.prod(shape):
-            raise ValueError(f"Can't reshape to {shape}.")
+            raise ValueError(f"Can't reshape {x_shape} to {shape}.")
         else:
             reshape_x = Tensor(x.storage,
                                shape,
@@ -735,7 +735,7 @@ class FastMatMul:
         return align(x_grad, x_shape), align(y_grad, y_shape)
 
 
-class Conv2d:
+class Conv2dFunc:
     """
 
     """
@@ -767,6 +767,12 @@ class Conv2d:
 
         if inp_channels != inp_channels_:
             raise ValueError(f"Mismatch in the number of input channels, got {inp_channels} and {inp_channels_}.")
+        if not isinstance(stride, (int, tuple)):
+            raise TypeError("The stride must be an integer or a tuple.")
+        if not isinstance(padding, (int, tuple)):
+            raise TypeError("The padding must be an integer or a tuple.")
+        if not isinstance(dilation, (int, tuple)):
+            raise TypeError("The dilation must be an integer or a tuple.")
 
         if isinstance(padding, int):
             padding = (padding, padding)
@@ -783,9 +789,6 @@ class Conv2d:
             raise ValueError(f"Dilation must be positive, got {dilation} instead.")
         if dilation[0] * (kh - 1) + 1 > h + 2 * padding[0] or dilation[1] * (kw - 1) + 1 > w + 2 * padding[1]:
             raise ValueError("The (dilated) kernel shape is larger than the (padded) input shape")
-        if ((h + 2 * padding[0] - (dilation[0] * (kh - 1) + 1)) % stride[0] != 0
-                or (w + 2 * padding[1] - (dilation[1] * (kw - 1) + 1)) % stride[1] != 0):
-            raise ValueError("The Shape of the (padded) input should be divisible by the shape of the (dilated) kernel given the stride.")
 
         if padding != (0, 0):
             x_padded_shape = (batch_size, inp_channels, h + padding[0] * 2, w + padding[1] * 2)
@@ -848,7 +851,7 @@ class Conv2d:
         out = x_new @ k_new # Then we can apply matrix multiplication between the new input and kernel
         out = out.permute(0, 3, 1, 2) # Change its shape back to how it should be
         if x.history or k.history:
-            out.history = History(Conv2d, (x_padded.constant(), k_dilated.constant(),
+            out.history = History(Conv2dFunc, (x_padded.constant(), k_dilated.constant(),
                                            stride, padding, dilation), (x, k))
 
         return out
@@ -856,8 +859,49 @@ class Conv2d:
     @staticmethod
     def backward(cache, grad: Tensor) -> tuple:
         x_padded, k_dilated, stride, padding, dilation = cache
+        x_padded_storage, x_padded_shape, x_padded_stride, x_padded_offset = x_padded.core()
+        k_dilated_storage, k_dilated_shape, k_dilated_stride, k_dilated_offset = k_dilated.core()
+        # Sometimes our kernel can't reach the end of the input, in order to generate the correct gradient,
+        # we need to record the number of rows and columns that are not used in the forward pass
+        unused = [0, 0]
+        unused[0] = (x_padded_shape[-2] - k_dilated_shape[-2]) % stride[0] # Number of unused rows at the bottom
+        unused[1] = (x_padded_shape[-1] - k_dilated_shape[-1]) % stride[1] # Number of unused columns on the right
 
-        k_grad = Conv2d.forward(x_padded.permute(1, 0, 2, 3),
+        # Change the padded input accordingly by removing unused rows and columns
+        if unused[0] != 0 or unused[1] != 0:
+            x_padded_used_shape = (x_padded_shape[0],
+                                   x_padded_shape[1],
+                                   x_padded_shape[2] - unused[0],
+                                   x_padded_shape[3] - unused[1])
+            num = math.prod(x_padded_used_shape)
+            x_padded_used_storage = [0] * num
+            for x_padded_used_storage_idx in range(num):
+                x_padded_used_tensor_idx = to_tensor_idx(x_padded_used_storage_idx, x_padded_used_shape)
+                if (x_padded_used_tensor_idx[-1] <= x_padded_shape[-1] - 1 - unused[1] and
+                        x_padded_used_tensor_idx[-2] <= x_padded_shape[-2] - 1 - unused[0]):
+                    x_padded_storage_idx = to_storage_idx(x_padded_used_tensor_idx, x_padded_stride, x_padded_offset)
+                    x_padded_used_storage[x_padded_used_storage_idx] = x_padded_storage[x_padded_storage_idx]
+            x_padded_used = Tensor(x_padded_used_storage, x_padded_used_shape)
+
+            # Change the dilated kernel accordingly by padding zeros
+            k_dilated_used_shape = (k_dilated_shape[0],
+                                   k_dilated_shape[1],
+                                   k_dilated_shape[2] + unused[0],
+                                   k_dilated_shape[3] + unused[1])
+            num = math.prod(k_dilated_used_shape)
+            k_dilated_used_storage = [0] * num
+            for k_dilated_used_storage_idx in range(num):
+                k_dilated_used_tensor_idx = to_tensor_idx(k_dilated_used_storage_idx, k_dilated_used_shape)
+                if (k_dilated_used_tensor_idx[-1] <= k_dilated_shape[-1] - 1 and
+                        k_dilated_used_tensor_idx[-2] <= k_dilated_shape[-2] - 1):
+                    k_dilated_storage_idx = to_storage_idx(k_dilated_used_tensor_idx, k_dilated_stride, k_dilated_offset)
+                    k_dilated_used_storage[k_dilated_used_storage_idx] = k_dilated_storage[k_dilated_storage_idx]
+            k_dilated_used = Tensor(k_dilated_used_storage, k_dilated_used_shape)
+        else:
+            x_padded_used = x_padded
+            k_dilated_used = k_dilated
+
+        k_grad = Conv2dFunc.forward(x_padded_used.permute(1, 0, 2, 3),
                                 grad.permute(1, 0, 2, 3),
                                 stride=dilation,
                                 padding=0,
@@ -878,10 +922,11 @@ class Conv2d:
             grad_r_storage[grad_r_storage_idx] = grad_storage[grad_storage_idx]
         grad_r = Tensor(grad_r_storage, grad_r_shape)
 
-        x_grad = Conv2d.forward(k_dilated.permute(1, 0, 2, 3),
+        x_grad = Conv2dFunc.forward(k_dilated_used.permute(1, 0, 2, 3),
                                 grad_r,
                                 stride=1,
-                                padding=(stride[0] * (grad_shape[-2] - 1) - padding[-2], stride[1] * (grad_shape[-1] - 1) - padding[-1]),
+                                padding=(stride[0] * (grad_shape[-2] - 1) - padding[-2],
+                                         stride[1] * (grad_shape[-1] - 1) - padding[-1]),
                                 dilation=stride).permute(1, 0, 2, 3)
 
         return x_grad, k_grad
@@ -904,7 +949,7 @@ Tensor.__le__ = lambda x, y: tensor_zip(le)(x, to_tensor(y))
 Tensor.__pow__ = Pow.forward
 Tensor.__rpow__ = lambda x, y: Pow.forward(y, x)
 Tensor.__matmul__ = FastMatMul.forward
-Tensor.conv2d = Conv2d.forward
+Tensor.conv2d = Conv2dFunc.forward
 Tensor.max = Max.forward
 Tensor.sum = Sum.forward
 Tensor.prod = Prod.forward

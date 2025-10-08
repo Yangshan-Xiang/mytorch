@@ -302,7 +302,10 @@ class Tensor:
         pass
     def __matmul__(self, other):
         pass
-    def conv2d(self, other):
+    def conv2d(self, other,
+               stride: Union[int, tuple] = 1,
+               padding: Union[int, tuple] = 0,
+               dilation: Union[int, tuple] = 1):
         pass
     def max(self, dim: int, keepdim: bool = True):
         pass
