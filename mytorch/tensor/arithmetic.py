@@ -735,7 +735,7 @@ class FastMatMul:
         return align(x_grad, x_shape), align(y_grad, y_shape)
 
 
-class Conv2dFunc:
+class MyConv2d:
     """
 
     """
@@ -851,7 +851,7 @@ class Conv2dFunc:
         out = x_new @ k_new # Then we can apply matrix multiplication between the new input and kernel
         out = out.permute(0, 3, 1, 2) # Change its shape back to how it should be
         if x.history or k.history:
-            out.history = History(Conv2dFunc, (x_padded.constant(), k_dilated.constant(),
+            out.history = History(MyConv2d, (x_padded.constant(), k_dilated.constant(),
                                            stride, padding, dilation), (x, k))
 
         return out
@@ -901,7 +901,7 @@ class Conv2dFunc:
             x_padded_used = x_padded
             k_dilated_used = k_dilated
 
-        k_grad = Conv2dFunc.forward(x_padded_used.permute(1, 0, 2, 3),
+        k_grad = MyConv2d.forward(x_padded_used.permute(1, 0, 2, 3),
                                 grad.permute(1, 0, 2, 3),
                                 stride=dilation,
                                 padding=0,
@@ -922,7 +922,7 @@ class Conv2dFunc:
             grad_r_storage[grad_r_storage_idx] = grad_storage[grad_storage_idx]
         grad_r = Tensor(grad_r_storage, grad_r_shape)
 
-        x_grad = Conv2dFunc.forward(k_dilated_used.permute(1, 0, 2, 3),
+        x_grad = MyConv2d.forward(k_dilated_used.permute(1, 0, 2, 3),
                                 grad_r,
                                 stride=1,
                                 padding=(stride[0] * (grad_shape[-2] - 1) - padding[-2],
@@ -949,7 +949,7 @@ Tensor.__le__ = lambda x, y: tensor_zip(le)(x, to_tensor(y))
 Tensor.__pow__ = Pow.forward
 Tensor.__rpow__ = lambda x, y: Pow.forward(y, x)
 Tensor.__matmul__ = FastMatMul.forward
-Tensor.conv2d = Conv2dFunc.forward
+Tensor.conv2d = MyConv2d.forward
 Tensor.max = Max.forward
 Tensor.sum = Sum.forward
 Tensor.prod = Prod.forward

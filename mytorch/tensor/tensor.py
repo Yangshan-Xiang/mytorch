@@ -254,10 +254,9 @@ class Tensor:
                     pass
                 param.gradient += catalog[id(param)] # Enable it to accumulate derivatives,
                 # useful in certain cases like multitask learning.
-
-    def __repr__(self):
+    def tolist(self):
         """
-        Show the tensor as a nested list.
+        Return the tensor as a nested list.
         """
         out = layout(self.shape)
         self_storage, self_shape, self_stride, self_offset = self.core()
@@ -267,10 +266,13 @@ class Tensor:
             self_storage_idx = to_storage_idx(out_tensor_idx, self_stride, self_offset)
             assign(out, out_tensor_idx, round(self_storage[self_storage_idx], 4))
 
+        return out
+
+    def __repr__(self):
         if self.history is None:
-            return f"Tensor({out})"
+            return f"Tensor({self.tolist()})"
         else:
-            return f"Tensor({out}, history={self.history})"
+            return f"Tensor({self.tolist()}, history={self.history})"
 
 
     # To avoid circular import, following methods are all defined in arithmetic.py
