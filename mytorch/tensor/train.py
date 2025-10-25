@@ -5,6 +5,8 @@ from mytorch.tensor.arithmetic import *
 from mytorch.tensor.models import *
 from mytorch.tensor.optimizers import *
 import matplotlib.pyplot as plt
+from torchvision import datasets, transforms
+from torch.utils.data import DataLoader
 
 random.seed(42)
 
@@ -144,5 +146,77 @@ def train(model, dataset, optim: str, epochs: int, lr: float):
     plt.show()
 
 
+def mnist(batch_size: int = 64, train: bool = True, download: bool = True):
+    dataset = datasets.MNIST(root='./data', train=train, download=download, transform=transforms.ToTensor())
+    dataloader = DataLoader(dataset, batch_size=batch_size)
+
+    batched = []
+    for i, (images, labels) in enumerate(dataloader):
+        if i >= 10:
+            break
+        batched.append([Tensor(images.flatten().numpy().tolist(), (images.shape[0], 1, 28, 28)),
+                        Tensor(labels.numpy().tolist())])
+
+    return batched
+
+def mnist_train(model, optim: str):
+    epochs = 10
+    batch_size = 64
+
+    if optim == 'Adam':
+        optimizer = Adam(model.get_params(), lr = 0.001) # Adam optimizer is much better and more stable than SGD optimizer
+    elif optim == 'Adagrad':
+        optimizer = Adagrad(model.get_params(), lr = 0.1)
+    elif optim == 'SGD':
+        optimizer = SGD(model.get_params(), lr=0.01)
+    else:
+        raise ValueError(f'Optimizer {optim} is not supported')
+
+    batched = mnist(batch_size=batch_size, train=True)
+    losses, accs = [], []
+    for epoch in range(1, epochs + 1):
+        total_loss = 0
+        total_correct = 0
+        for images, labels in batched:
+            prob = model(images).reshape(batch_size, 10)
+            prob = prob.softmax(-1)
+            loss = CrossEntropyLoss('mean')(prob, labels)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            _, pred = prob.max(1, keepdim=False)
+            correct = pred == labels
+            num_correct = correct.sum(0) # type: ignore
+            total_loss += loss.storage[0]
+            total_correct += num_correct
+        loss = total_loss / len(batched)
+        losses.append(loss)
+        acc = (total_correct / (batch_size * len(batched))).storage[0] * 100
+        accs.append(acc)
+
+        print(f"epoch: {epoch}/{epochs}, "
+              f"acc: {acc:.2f}%, "
+              f"loss: {loss:.4f}")
+
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+
+    ax1 = axes[0]
+    ax1.plot(range(1, epochs + 1), losses, color='k', label='Loss')
+    ax1.set_xlabel('Epoch')
+    ax1.set_ylabel('Loss')
+    ax1.tick_params(axis='y')
+    ax1.set_title(f'Loss Curves')
+
+    ax2 = axes[1]
+    ax2.plot(range(1, epochs + 1), accs, color='k', label='Accuracy')
+    ax2.set_xlabel('Epoch')
+    ax2.set_ylabel('Accuracy (%)')
+    ax2.tick_params(axis='y')
+    ax2.set_title(f'Accuracy Curves')
+
+    plt.tight_layout()
+    plt.show()
+
+
 if __name__ == "__main__":
-    train(model = MLP(2, 10, 1), dataset = spiral(pts=100), optim = 'SGD', epochs = 400, lr = 0.01)
+    mnist_train(model = Conv2d(1, 10, 28), optim = 'Adagrad')
