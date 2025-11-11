@@ -103,7 +103,7 @@ class HTModel(nn.Module):
 
         return h
 
-def train():
+def train_ht():
     """
     Train the HT model on MNIST dataset and test the model. LOW accuracy are expected due to structure constraints.
     For example, the transformation of input image from shape (28, 28) to the required shape (N, s) by splitting
@@ -133,10 +133,10 @@ def train():
     transform = transforms.Compose([transforms.ToTensor(),
                                     transforms.Normalize((0.1307,), (0.3081,))])
     # Initialize the dataloaders
-    train_dataset = datasets.MNIST('../models/data', train=True, download=True, transform=transform)
+    train_dataset = datasets.MNIST('../../models/data', train=True, download=True, transform=transform)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
-    test_dataset = datasets.MNIST('../models/data', train=False, download=True, transform=transform)
+    test_dataset = datasets.MNIST('../../models/data', train=False, download=True, transform=transform)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
     for epoch in range(epochs):
@@ -181,4 +181,4 @@ def train():
     print(f'test accuracy: {100 * correct / total:.2f}%')
 
 if __name__ == "__main__":
-    train()
+    train_ht()
