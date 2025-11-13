@@ -953,7 +953,6 @@ Tensor.conv2d = MyConv2d.forward
 Tensor.max = Max.forward
 Tensor.sum = Sum.forward
 Tensor.prod = Prod.forward
-Tensor.kron = NotImplemented
 Tensor.log = Log.forward
 Tensor.sqrt = Sqrt.forward
 Tensor.softmax = Softmax.forward

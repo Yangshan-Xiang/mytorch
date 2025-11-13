@@ -56,6 +56,26 @@ def spiral(pts: int):
 
     return xs, ys
 
+def curves(epochs, losses, accs):
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+
+    ax1 = axes[0]
+    ax1.plot(range(1, epochs + 1), losses, color='k', label='Loss')
+    ax1.set_xlabel('Epoch')
+    ax1.set_ylabel('Loss')
+    ax1.tick_params(axis='y')
+    ax1.set_title(f'Loss Curves')
+
+    ax2 = axes[1]
+    ax2.plot(range(1, epochs + 1), accs, color='k', label='Accuracy')
+    ax2.set_xlabel('Epoch')
+    ax2.set_ylabel('Accuracy (%)')
+    ax2.tick_params(axis='y')
+    ax2.set_title(f'Accuracy Curves')
+
+    plt.tight_layout()
+    plt.show()
+
 def train(model, dataset, optim: str, epochs: int, lr: float):
     if optim == 'Adam':
         optimizer = Adam(model.get_params(), lr)
@@ -159,7 +179,7 @@ def mnist(batch_size: int = 64, train: bool = True, download: bool = True):
 
     return batched
 
-def mnist_train(model, optim: str):
+def train_cnn(model, optim: str):
     epochs = 10
     batch_size = 64
 
@@ -197,26 +217,4 @@ def mnist_train(model, optim: str):
         print(f"epoch: {epoch}/{epochs}, "
               f"acc: {acc:.2f}%, "
               f"loss: {loss:.4f}")
-
-    fig, axes = plt.subplots(1, 2, figsize=(10, 4))
-
-    ax1 = axes[0]
-    ax1.plot(range(1, epochs + 1), losses, color='k', label='Loss')
-    ax1.set_xlabel('Epoch')
-    ax1.set_ylabel('Loss')
-    ax1.tick_params(axis='y')
-    ax1.set_title(f'Loss Curves')
-
-    ax2 = axes[1]
-    ax2.plot(range(1, epochs + 1), accs, color='k', label='Accuracy')
-    ax2.set_xlabel('Epoch')
-    ax2.set_ylabel('Accuracy (%)')
-    ax2.tick_params(axis='y')
-    ax2.set_title(f'Accuracy Curves')
-
-    plt.tight_layout()
-    plt.show()
-
-
-if __name__ == "__main__":
-    mnist_train(model = Conv2d(1, 10, 28), optim = 'Adagrad')
+    curves(epochs, losses, accs)
