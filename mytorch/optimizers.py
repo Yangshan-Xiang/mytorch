@@ -1,6 +1,3 @@
-import math
-
-
 class Optimizer:
     """
     The fundamental construction for an optimizer, will be inherited by actual optimizers.
@@ -15,16 +12,13 @@ class Optimizer:
     def zero_grad(self, none_grad: bool = True) -> None:
         for param in self.params:
             if none_grad:
-                param.derivative = None
+                param.grad = None
             else:
-                param.derivative = 0
-
+                param.grad = 0
 
 class SGD(Optimizer):
     """
-    The Stochastic Gradient Descent optimizer. It is the most classic, well-known and fundamental optimizer,
-    however, it is not stable enough, performance can fluctuate from time to time, no longer an ideal pick
-    compare with other modern optimizers nowadays.
+    The Stochastic Gradient Descent optimizer. It is the most classic, well-known and fundamental optimizer.
 
     """
 
@@ -39,11 +33,11 @@ class SGD(Optimizer):
     def step(self) -> None:
         for i, param in enumerate(self.params):
             if self.maximize:
-                grad = -1 * param.derivative
+                grad = -1 * param.gradient
             else:
-                grad = param.derivative
+                grad = param.gradient
             if self.weight_decay != 0:
-                grad += self.weight_decay * param.value
+                grad += self.weight_decay * param.constant()
             else:
                 pass
             if self.momentum != 0:
@@ -57,8 +51,7 @@ class SGD(Optimizer):
                     grad = self.buffer[i]
             else:
                 pass
-            param.value -= self.lr * grad
-
+            param.update(param.constant() - self.lr * grad)
 
 class Adam(Optimizer):
     """
@@ -81,11 +74,11 @@ class Adam(Optimizer):
         self.t += 1
         for i, param in enumerate(self.params):
             if self.maximize:
-                grad = -1 * param.derivative
+                grad = -1 * param.gradient
             else:
-                grad = param.derivative
+                grad = param.gradient
             if self.weight_decay != 0:
-                grad += self.weight_decay * param.value
+                grad += self.weight_decay * param.constant()
             else:
                 pass
             self.m[i] = self.betas[0] * self.m[i] + (1 - self.betas[0]) * grad
@@ -96,8 +89,7 @@ class Adam(Optimizer):
                 v_hat = self.v_max[i] / (1 - self.betas[1] ** self.t)
             else:
                 v_hat = self.v[i] / (1 - self.betas[1] ** self.t)
-            param.value -= self.lr * m_hat / (math.sqrt(v_hat) + self.eps)
-
+            param.update(param.constant() - self.lr * m_hat / (v_hat.sqrt() + self.eps))
 
 class Adagrad(Optimizer):
     """
@@ -115,11 +107,11 @@ class Adagrad(Optimizer):
     def step(self) -> None:
         self.t += 1
         for i, param in enumerate(self.params):
-            grad = param.derivative
+            grad = param.gradient
             lr_tilde = self.lr / (1 + (self.t - 1) * self.lr_decay)
             if self.weight_decay != 0:
-                grad += self.weight_decay * param.value
+                grad += self.weight_decay * param.constant()
             else:
                 pass
             self.state_sum[i] += grad ** 2
-            param.value -= lr_tilde * grad / (math.sqrt(self.state_sum[i]) + self.eps)
+            param.update(param.constant() - lr_tilde * grad / (self.state_sum[i].sqrt()+ self.eps)) # type: ignore

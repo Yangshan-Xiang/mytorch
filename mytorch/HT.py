@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from mytorch.tensor.train import curves
+from mytorch.train import curves
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 import numpy as np
@@ -143,9 +143,6 @@ def train_ht():
     train_dataset = datasets.MNIST('./data', train=True, download=True, transform=transform)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
-    test_dataset = datasets.MNIST('./data', train=False, download=True, transform=transform)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
-
     losses, accs = [], []
     for epoch in range(1, epochs + 1):
         model.train()
@@ -179,6 +176,3 @@ def train_ht():
         if epoch % 10 == 0:
             print(f'epoch: {epoch}/{epochs}, loss: {loss:.4f}, acc: {acc:.2f}%')
     curves(epochs, losses, accs)
-
-if __name__ == "__main__":
-    train_ht()

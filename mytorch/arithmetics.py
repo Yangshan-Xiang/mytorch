@@ -1,6 +1,6 @@
-from mytorch.tensor.tensor import *
-from mytorch.tensor.operations import *
-from mytorch.tensor.utils import *
+from mytorch.tensor import *
+from mytorch.operations import *
+from mytorch.utils import *
 from typing import Callable
 
 from numpy import array # For faster matrix multiplication

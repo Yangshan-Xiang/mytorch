@@ -1,6 +1,5 @@
 from typing import Union
-from mytorch.tensor.utils import *
-
+from mytorch.utils import *
 
 class History:
     """
@@ -275,7 +274,7 @@ class Tensor:
             return f"Tensor({self.tolist()}, history={self.history})"
 
 
-    # To avoid circular import, following methods are all defined in arithmetic.py
+    # To avoid circular import, following methods are all defined in arithmetics.py
     def __add__(self, other):
         pass
     def __radd__(self, other):

@@ -1,4 +1,4 @@
-from mytorch.tensor.tensor import *
+from mytorch.tensor import *
 
 class BCELoss:
     """
