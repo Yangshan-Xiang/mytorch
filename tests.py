@@ -7,6 +7,18 @@ from mytorch.arithmetics import *
 class TestFunctions(unittest.TestCase):
 
     def setUp(self):
+        self.pts = [[1, 2], [3, 4]]
+        self.linear_1 = Linear(2, 1)
+        self.linear_2 = Linear(2, 2)
+        self.linear_3 = Linear(2, 3)
+        self.x = Parameter(Tensor([10]))
+        self.y = Parameter(Tensor([10]))
+        self.z = 10
+        self.a = self.x * self.y
+        self.b = self.y * self.z
+        self.c = self.a + self.b
+        self.output = self.c.log()
+
 
         self.storage = [1, 2, 3, 4, 5, 6]
         self.shape = (2, 2) # Only need 4 elements in the storage
@@ -31,6 +43,83 @@ class TestFunctions(unittest.TestCase):
         self.stride4 = (2, 1)
         self.offset4 = 0
         self.tensor4 = Tensor(self.storage4, self.shape4, self.stride4, self.offset4)
+
+    def test_topological_sort(self):
+        right_ordering = [id(self.output), id(self.c), id(self.b), id(self.a), id(self.y), id(self.x)]
+        ordering = []
+
+        for i in self.output.topological_sort():
+            ordering.append(id(i))
+
+        self.assertEqual(ordering, right_ordering)
+
+    def test_chain_rule(self):
+        self.assertEqual(len(self.output.chain_rule(Tensor([1]))), 1)
+        self.assertEqual(id(self.output.chain_rule(Tensor([1]))[0][0]), id(self.c))
+        self.assertAlmostEqual(self.output.chain_rule(Tensor([1]))[0][1], 1 / 200)
+
+        self.assertEqual(len(self.c.chain_rule(Tensor([1 / 200]))), 2)
+        self.assertEqual(id(self.c.chain_rule(Tensor([1 / 200]))[0][0]), id(self.a))
+        self.assertEqual(id(self.c.chain_rule(Tensor([1 / 200]))[1][0]), id(self.b))
+        self.assertEqual(self.c.chain_rule(Tensor([1 / 200]))[0][1], 1 / 200)
+        self.assertEqual(self.c.chain_rule(Tensor([1 / 200]))[1][1], 1 / 200)
+
+    def test_forward(self):
+        self.assertAlmostEqual(self.output.storage[0], math.log(200))
+
+    def test_backward(self):
+        self.output.backward()
+
+        self.assertAlmostEqual(self.x.gradient.storage[0], 0.05)
+        self.assertAlmostEqual(self.y.gradient.storage[0], 0.1)
+
+    def test_Linear(self):
+        for pt in self.pts:
+            self.assertEqual(len(self.linear_1(Tensor(pt)).storage), 1)
+            self.assertEqual(len(self.linear_2(Tensor(pt)).storage), 2)
+            self.assertEqual(len(self.linear_3(Tensor(pt)).storage), 3)
+
+    def test_get_params(self):
+        self.assertEqual(len(self.linear_1.get_params()[0].storage), 2)
+        self.assertEqual(len(self.linear_2.get_params()[0].storage), 4)
+        self.assertEqual(len(self.linear_3.get_params()[0].storage), 6)
+
+        self.assertEqual(len(self.linear_1.get_params()[1].storage), 1)
+        self.assertEqual(len(self.linear_2.get_params()[1].storage), 2)
+        self.assertEqual(len(self.linear_3.get_params()[1].storage), 3)
+
+    def test_SGD(self):
+        self.assertIsNone(self.x.gradient)
+        self.x.gradient = Tensor([2])
+        lr = 0.01
+        SGD([self.x], lr).step()
+        self.assertEqual(self.x.storage[0], 10 - lr * self.x.gradient)
+
+    def test_Adam(self):
+        self.assertIsNone(self.x.gradient)
+        self.x.gradient = Tensor([2])
+        lr = 0.01
+
+        Adam([self.x], lr).step()
+        self.assertEqual(self.x.storage[0], 10 - lr * 2 / (2 + 1e-8))
+
+    def test_Adagrad(self):
+        self.assertIsNone(self.x.gradient)
+        self.x.gradient = Tensor([2])
+        lr = 0.1
+        Adagrad([self.x], lr).step()
+        self.assertEqual(self.x.storage[0], 10 - lr * 2 / (2 + 1e-8))  # As you can see, it is the same as Adam
+
+    def test_zero_grad(self):
+        self.assertIsNone(self.x.gradient)
+        self.assertIsNone(self.y.gradient)
+        self.x.derivative = Tensor([2])
+        self.x.derivative = Tensor([4])
+
+        Adam([self.x, self.y]).zero_grad()
+
+        self.assertIsNone(self.x.gradient)
+        self.assertIsNone(self.y.gradient)
 
     def test_to_storage_idx(self):
         self.assertEqual(to_storage_idx((0, 0), self.stride, self.offset), 2)
@@ -237,10 +326,6 @@ class TestFunctions(unittest.TestCase):
         self.assertEqual(self.tensor.max(0, keepdim=False)[1].__repr__(), "Tensor([1, 1])")
         self.assertEqual(self.tensor2.max(0)[0].__repr__(), "Tensor([[[3, 4]]])")
         self.assertEqual(self.tensor2.max(0)[1].__repr__(), "Tensor([[[1, 1]]])")
-
-
-
-
 
 if __name__ == '__main__':
     unittest.main()
