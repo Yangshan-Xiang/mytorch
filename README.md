@@ -1,48 +1,37 @@
-# Tensor Network
+# MyTorch: A Deep Learning Library from Scratch
+This project is inspired by **PyTorch**. Its motivation is to build and train the Hierarchical Tucker (HT) model, proposed in the paper ["On the Expressive Power of Deep Learning: A Tensor Analysis"](https://arxiv.org/abs/1509.05009), without relying on any external deep learning framework.
+
+## 📘 Description
+The primary goal of **MyTorch** is to develop an automatic differentiation system to realize [backpropagation](https://www.iro.umontreal.ca/~vincentp/ift3395/lectures/backprop_old.pdf), the key algorithm underlying model training. Each file in the `mytorch/` directory serves a specific purpose as outlined below:
+- `tensor.py`: Defines the custom `Tensor` class, the core data structure resembling `torch.Tensor`.
+- `operations.py`: Defines low-level operations for `float`.
+- `arithmetics.py`: Implements high-level arithmetics for `Tensor`, adapted to support automatic differentiation.
+- `losses.py`: Contains various loss functions used for different training tasks.
+- `optimizers.py`: Implements common optimization algorithms such as stochastic gradient descent and Adam optimizer.
+- `models.py`: Stores common deep learning models, including multilayer perceptron (MLP) and convolutional neural network (CNN).
+- `train.py`: Provides simple custom datasets and functions for training and visualizing model performance.
+- `utils.py`: Includes auxiliary utility functions used across the project.
+- `HT.py`: Implements the HT model and its training function.
+
+For comprehensive mathematical derivations, illustrations, visualizations and references, please check `report.ipynb`.
+
+## 📈 Visuals
+The following diagram is an illustration of the HT model presented in the original paper:
+<p align="center">
+  <img src="visuals/HT.png" alt="HT Model Architecture" width="1927"/>
+  <br>
+  <em>Figure 1: Hierarchical Tucker (HT) model structure.</em>
+</p>
 
 
 
-## Getting started
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
 
-## Add your files
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
 
-```
-cd existing_repo
-git remote add origin https://gitlab.gwdg.de/yangshan.xiang/tensor-network.git
-git branch -M main
-git push -uf origin main
-```
 
-## Integrate with your tools
 
-- [ ] [Set up project integrations](https://gitlab.gwdg.de/yangshan.xiang/tensor-network/-/settings/integrations)
-
-## Collaborate with your team
-
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
-
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
-
-***
 
 # Editing this README
 

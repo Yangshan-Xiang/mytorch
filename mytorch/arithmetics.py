@@ -7,7 +7,7 @@ from numpy import array # For faster matrix multiplication
 
 def tensor_map(func) -> Callable:
     """
-    A higher-order function which turns a float-to-float function into
+    A higher-level function which turns a float-to-float function into
     a tensor-to-tensor function.
 
     Args:
