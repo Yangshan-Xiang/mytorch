@@ -1,9 +1,12 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from mytorch.train import curves
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 import numpy as np
+
+torch.manual_seed(0)
 
 # The key to implement this model is how to index and structure all the parameters such that they can
 # be computed recursively
@@ -52,7 +55,11 @@ class HTModel(nn.Module):
         # the original paper, here the representation layer is trainable
         self.repr = nn.Sequential(nn.Linear(s, 128),
                                   nn.ReLU(),
-                                  nn.Linear(128, M))
+                                  nn.Linear(128, 64),
+                                  nn.ReLU(),
+                                  nn.Linear(64, 32),
+                                  nn.ReLU(),
+                                  nn.Linear(32, M))
 
     def forward(self, X):
         """
@@ -103,7 +110,7 @@ class HTModel(nn.Module):
 
         return h
 
-def train():
+def train_ht():
     """
     Train the HT model on MNIST dataset and test the model. LOW accuracy are expected due to structure constraints.
     For example, the transformation of input image from shape (28, 28) to the required shape (N, s) by splitting
@@ -118,7 +125,7 @@ def train():
     ranks = [16, 8]
     batch_size = 64
     learning_rate = 0.001
-    epochs = 10
+    epochs = 100
 
     # Define the model, choose the loss function and optimizer
     model = HTModel(N, s, M, Y, ranks)
@@ -133,18 +140,19 @@ def train():
     transform = transforms.Compose([transforms.ToTensor(),
                                     transforms.Normalize((0.1307,), (0.3081,))])
     # Initialize the dataloaders
-    train_dataset = datasets.MNIST('../models/data', train=True, download=True, transform=transform)
+    train_dataset = datasets.MNIST('./data', train=True, download=True, transform=transform)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
-    test_dataset = datasets.MNIST('../models/data', train=False, download=True, transform=transform)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
-
-    for epoch in range(epochs):
+    losses, accs = [], []
+    for epoch in range(1, epochs + 1):
         model.train()
         running_loss = 0
         correct = 0
         total = 0
-        for images, labels in train_loader:
+        num_batches = 20 # Due to time limit, we only use a part of the MNIST dataset
+        for i, (images, labels) in enumerate(train_loader):
+            if i >= num_batches:
+                break
             # Be careful with the batch size of the LAST batch, might be different and cause error
             images, labels = images.to(device), labels.to(device)
             # Transform the images from shape (batch_size, 1, 28, 28) to the required shape (batch_size, N, s)
@@ -161,24 +169,10 @@ def train():
             _, predicted = output.max(1)
             total += labels.shape[0]
             correct += predicted.eq(labels).sum().item()
-
-        print(f'epoch: {epoch}/{epochs}, loss: {running_loss / len(train_loader):.4f}, acc: {100 * correct / total:.2f}%')
-
-    # Test the trained model
-    model.eval()
-    correct = 0
-    total = 0
-    with torch.no_grad(): # No gradient update
-        for images, labels in test_loader:
-            images, labels = images.to(device), labels.to(device)
-            images = images.squeeze(1).reshape(-1, N, s)
-
-            outputs = model(images)
-            _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += predicted.eq(labels).sum().item()
-
-    print(f'test accuracy: {100 * correct / total:.2f}%')
-
-if __name__ == "__main__":
-    train()
+        loss = running_loss / num_batches
+        losses.append(loss)
+        acc = 100 * correct / total
+        accs.append(acc)
+        if epoch % 10 == 0:
+            print(f'epoch: {epoch}/{epochs}, loss: {loss:.4f}, acc: {acc:.2f}%')
+    curves(epochs, losses, accs)
