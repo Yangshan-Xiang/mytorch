@@ -18,19 +18,23 @@ For comprehensive mathematical derivations, illustrations, visualizations and re
 ## 📈 Visuals
 The following diagram illustrates the structure of the HT model:
 
-<p align="center">
-  <img src="visuals/HT.png" alt="HT"/>
-  <br>
-  <em>Figure 1: Hierarchical Tucker (HT) model by Cohen et al. (2016).</em>
-</p>
+<div style="text-align: center;">
+
+![HT](visuals/HT.png)
+
+*Figure 1: Hierarchical Tucker (HT) model by [Cohen et al. (2016)](https://arxiv.org/abs/1509.05009).*
+
+</div>
 
 We trained the HT model on a subset of [**MNIST**](https://en.wikipedia.org/wiki/MNIST_database) dataset. The resulting training curves are shown below:
 
-<p align="center">
-  <img src="visuals/curves.png" alt="curves"/>
-  <br>
-  <em>Figure 2: Training curves of the HT model on MNIST dataset.</em>
-</p>
+<div style="text-align: center;">
+
+![curves](visuals/curves.png)
+
+*Figure 2: Training curves of the HT model on MNIST dataset.*
+
+</div>
 
 ## 👨‍💻 Author
 **Yangshan Xiang**  
